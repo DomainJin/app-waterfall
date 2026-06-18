@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(npx electron *)",
+      "Bash(node --check electron/main.js)",
+      "Bash(node --check electron/preload.js)",
+      "Bash(node -e \"console.log\\('local electron pkg:', require\\('./node_modules/electron/package.json'\\).version\\)\")",
+      "Bash(./node_modules/.bin/electron --version)",
+      "Bash(env)",
+      "Bash(npx cross-env *)",
+      "Bash(node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const cp=require\\('child_process'\\); const out=cp.execFileSync\\(require\\('electron'\\),['--version'],{encoding:'utf8'}\\); console.log\\('electron says:', out.trim\\(\\)\\);\")",
+      "Bash(node -e ' *)",
+      "Bash(cd \"C:/Users/SGM/.claude/projects/d--VXI-Chinh-waterfall-sprite/memory\" && ls -la 2>&1; echo \"---\"; cat MEMORY.md 2>&1 || echo \"\\(no MEMORY.md\\)\")",
+      "Read(//c/Users/SGM/.claude/projects/d--VXI-Chinh-waterfall-sprite/memory/**)",
+      "Bash(rm scripts/verify-renderer.cjs)",
+      "Bash(rmdir scripts *)"
+    ]
+  }
+}

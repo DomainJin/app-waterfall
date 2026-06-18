@@ -1,0 +1,99 @@
+import { describe, expect, it } from 'vitest';
+import {
+  bytesToHex,
+  cmdAllOff,
+  cmdAllOn,
+  cmdGetConfig,
+  cmdSet,
+  cmdSetTick,
+  cmdStreamStop,
+  fetchVersion,
+  parseVersion,
+} from '../src/transport';
+import { valveBits } from '../src/codec/valveBin';
+
+describe('bytesToHex', () => {
+  it('uppercase, zero-padded', () => {
+    expect(bytesToHex(new Uint8Array([0xff, 0x00, 0x40]))).toBe('FF0040');
+    expect(bytesToHex(new Uint8Array([0x01]))).toBe('01');
+  });
+});
+
+describe('JSON commands', () => {
+  it('ALL_OFF / ALL_ON / STREAM_STOP / GET_CONFIG', () => {
+    expect(JSON.parse(cmdAllOff())).toEqual({ cmd: 'ALL_OFF' });
+    expect(JSON.parse(cmdAllOn())).toEqual({ cmd: 'ALL_ON' });
+    expect(JSON.parse(cmdStreamStop())).toEqual({ cmd: 'STREAM_STOP' });
+    expect(JSON.parse(cmdGetConfig())).toEqual({ cmd: 'GET_CONFIG' });
+  });
+
+  it('SET.bits is dynamic-length hex (bytes × 2), not fixed 20 chars', () => {
+    // B=1: valves 0,1 -> 0xC0 -> "C0" (2 chars)
+    expect(JSON.parse(cmdSet(valveBits([0, 1], 1)))).toEqual({
+      cmd: 'SET',
+      bits: 'C0',
+    });
+    // B=10 -> 20 hex chars; B=40 -> 80 hex chars (dynamic)
+    expect(JSON.parse(cmdSet(valveBits([0], 10))).bits.length).toBe(20);
+    expect(JSON.parse(cmdSet(valveBits([0], 40))).bits.length).toBe(80);
+  });
+
+  it('SET_TICK carries a rounded, >=1 ms value', () => {
+    expect(JSON.parse(cmdSetTick(80))).toEqual({ cmd: 'SET_TICK', ms: 80 });
+    expect(JSON.parse(cmdSetTick(15.6)).ms).toBe(16);
+    expect(JSON.parse(cmdSetTick(0)).ms).toBe(1);
+  });
+
+  it('no command emits SET_MODE (Stream mode only)', () => {
+    const all = [
+      cmdAllOff(),
+      cmdAllOn(),
+      cmdStreamStop(),
+      cmdGetConfig(),
+      cmdSetTick(50),
+      cmdSet(valveBits([0], 1)),
+    ].join(' ');
+    expect(all).not.toContain('SET_MODE');
+  });
+});
+
+describe('parseVersion', () => {
+  it('extracts tickMs + valve_count', () => {
+    expect(parseVersion({ tickMs: 30, valve_count: 320 })).toMatchObject({
+      tickMs: 30,
+      valveCount: 320,
+    });
+  });
+
+  it('accepts camelCase valveCount', () => {
+    expect(parseVersion({ valveCount: 80 }).valveCount).toBe(80);
+  });
+
+  it('missing / non-numeric / null -> nulls', () => {
+    expect(parseVersion({})).toMatchObject({ tickMs: null, valveCount: null });
+    expect(parseVersion({ tickMs: 'x' }).tickMs).toBeNull();
+    expect(parseVersion(null)).toMatchObject({ tickMs: null, valveCount: null });
+  });
+});
+
+describe('fetchVersion (injected fetch)', () => {
+  const okFetch = (body: unknown): typeof fetch =>
+    (async () => ({ ok: true, json: async () => body })) as unknown as typeof fetch;
+
+  it('returns parsed version on success', async () => {
+    const v = await fetchVersion('1.2.3.4', 8080, okFetch({ tickMs: 25, valve_count: 80 }));
+    expect(v).toMatchObject({ tickMs: 25, valveCount: 80 });
+  });
+
+  it('returns null on non-ok response', async () => {
+    const bad = (async () => ({ ok: false, json: async () => ({}) })) as unknown as typeof fetch;
+    expect(await fetchVersion('1.2.3.4', 8080, bad)).toBeNull();
+  });
+
+  it('returns null when fetch throws (no device)', async () => {
+    const throwing = (async () => {
+      throw new Error('ECONNREFUSED');
+    }) as unknown as typeof fetch;
+    expect(await fetchVersion('1.2.3.4', 8080, throwing)).toBeNull();
+  });
+});

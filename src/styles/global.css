@@ -1,0 +1,64 @@
+/* Base reset + theme + shared primitives (.panel, .btn) used across panels.
+   Component-specific styles live next to each component, in ui/<Name>/styles.css */
+
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #111418;
+  color: #e6e9ee;
+}
+
+/* Shared panel container. */
+.panel {
+  width: 100%;
+  border: 1px solid #2a2f37;
+  border-radius: 8px;
+  padding: 16px 18px;
+  background: #161a20;
+}
+
+.panel__title {
+  margin: 0 0 14px;
+  font-size: 15px;
+  color: #cdd4de;
+}
+
+/* Shared button primitives. */
+.btn {
+  appearance: none;
+  border: 1px solid #3a86ff;
+  background: #1b2330;
+  color: #e6e9ee;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.btn:hover {
+  background: #243049;
+}
+
+.btn--icon {
+  padding: 6px 10px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.btn--sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

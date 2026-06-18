@@ -1,0 +1,69 @@
+.device__status {
+  margin-left: 10px;
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid #2a2f37;
+  color: #8a93a0;
+}
+
+.device__status--connected {
+  color: #5ce1a6;
+  border-color: #2f6b52;
+}
+
+.device__status--connecting {
+  color: #ffb454;
+  border-color: #6b5a2f;
+}
+
+.device__status--error {
+  color: #ff6b6b;
+  border-color: #6b2f2f;
+}
+
+.device__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.device__row input {
+  width: 150px;
+  background: #0e1116;
+  border: 1px solid #2a2f37;
+  border-radius: 5px;
+  color: #e6e9ee;
+  padding: 5px 7px;
+  font-size: 13px;
+}
+
+.device__readout {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 12px;
+  color: #aab3bf;
+}
+
+.device__readout b {
+  color: #cdd4de;
+  font-variant-numeric: tabular-nums;
+}
+
+.device__commands {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.device__error {
+  margin-top: 10px;
+  color: #ff6b6b;
+  font-size: 12px;
+}

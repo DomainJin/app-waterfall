@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Waterfall Sprite Editor</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: 'Segoe UI', sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── Toolbar ── */
+#toolbar {
+  background: #161b22;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+#toolbar .title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #58a6ff;
+  white-space: nowrap;
+}
+.sep { width: 1px; height: 24px; background: #30363d; flex-shrink: 0; }
+.tbtn {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.tbtn:hover { background: #30363d; }
+.tbtn.active { background: #1f6feb; border-color: #388bfd; color: #fff; }
+.tbtn.danger { background: #da3633; border-color: #f85149; color: #fff; }
+.tbtn.danger:hover { background: #f85149; }
+.tlabel { font-size: 11px; color: #8b949e; white-space: nowrap; }
+.tnum {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 3px 6px;
+  border-radius: 4px;
+  width: 58px;
+  font-size: 12px;
+}
+
+/* ── Main area ── */
+#main {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* ── Canvas wrap ── */
+#canvas-wrap {
+  flex: 1;
+  overflow: auto;
+  background: #010409;
+  position: relative;
+  min-width: 0;
+}
+#ruler-h {
+  position: sticky;
+  top: 0;
+  left: 0;
+  background: #0d1117;
+  z-index: 2;
+  display: block;
+}
+#grid-canvas {
+  display: block;
+  cursor: crosshair;
+  image-rendering: pixelated;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 192px;
+  flex-shrink: 0;
+  background: #161b22;
+  border-left: 1px solid #30363d;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.sg {
+  padding: 10px 12px;
+  border-bottom: 1px solid #21262d;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sg-title {
+  font-size: 10px;
+  font-weight: 600;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+}
+.sg label { font-size: 11px; color: #8b949e; }
+.sg input[type=number],
+.sg input[type=text] {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  width: 100%;
+}
+.sbtn {
+  width: 100%;
+  padding: 7px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sbtn-blue  { background: #1f6feb; color: #fff; }
+.sbtn-blue:hover  { background: #388bfd; }
+.sbtn-green { background: #238636; color: #fff; }
+.sbtn-green:hover { background: #2ea043; }
+.sbtn-red   { background: #da3633; color: #fff; }
+.sbtn-red:hover   { background: #f85149; }
+.sbtn-gray  { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; }
+.sbtn-gray:hover  { background: #30363d; }
+#info { font-size: 11px; color: #8b949e; line-height: 1.7; }
+
+/* ── Status bar ── */
+#statusbar {
+  background: #161b22;
+  border-top: 1px solid #30363d;
+  padding: 3px 12px;
+  font-size: 11px;
+  color: #8b949e;
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span class="title">💧 Waterfall Editor</span>
+  <div class="sep"></div>
+
+  <button class="tbtn active" id="btn-draw"      onclick="setTool('draw')">✏️ Draw</button>
+  <button class="tbtn"        id="btn-erase"     onclick="setTool('erase')">🧹 Erase</button>
+  <button class="tbtn"        id="btn-fillrow"   onclick="setTool('fillrow')">▬ Fill row</button>
+  <button class="tbtn"        id="btn-clearrow"  onclick="setTool('clearrow')">✕ Clear row</button>
+  <button class="tbtn"        id="btn-fillcol"   onclick="setTool('fillcol')">│ Fill col</button>
+
+  <div class="sep"></div>
+
+  <span class="tlabel">Brush W</span>
+  <input class="tnum" type="number" id="brush-w" value="1" min="1" max="80" style="width:46px">
+  <span class="tlabel">H</span>
+  <input class="tnum" type="number" id="brush-h" value="1" min="1" max="100" style="width:46px">
+
+  <div class="sep"></div>
+
+  <button class="tbtn" onclick="mirrorH()">⟺ Mirror</button>
+  <button class="tbtn" onclick="invert()">⊞ Invert</button>
+  <button class="tbtn" onclick="shiftDown()">↓ Shift</button>
+  <button class="tbtn" onclick="shiftUp()">↑ Shift</button>
+
+  <div class="sep"></div>
+
+  <button class="tbtn" id="btn-play" onclick="togglePlay()">▶ Play</button>
+  <span class="tlabel">×</span>
+  <input class="tnum" type="number" id="speed" value="1" min="0.1" max="20" step="0.1">
+
+  <div class="sep"></div>
+
+  <span class="tlabel">Zoom</span>
+  <input class="tnum" type="number" id="zoom" value="10" min="3" max="32" onchange="setZoom(+this.value)">
+</div>
+
+<div id="main">
+  <div id="canvas-wrap">
+    <canvas id="ruler-h"></canvas>
+    <canvas id="grid-canvas"></canvas>
+  </div>
+
+  <div id="sidebar">
+    <div class="sg">
+      <div class="sg-title">Grid</div>
+      <label>Rows (frames)</label>
+      <input type="number" id="s-rows" value="64" min="1" max="2000">
+      <label>Row interval (ms)</label>
+      <input type="number" id="s-rowms" value="80" min="1" max="9999">
+      <button class="sbtn sbtn-gray" onclick="applySettings()">Apply</button>
+    </div>
+
+    <div class="sg">
+      <div class="sg-title">Export</div>
+      <button class="sbtn sbtn-blue" onclick="exportBin()">⬇ Export .bin</button>
+    </div>
+
+    <div class="sg">
+      <div class="sg-title">Send WebSocket</div>
+      <label>ESP32 IP:Port</label>
+      <input type="text" id="s-ip" value="192.168.1.222:3333">
+      <button class="sbtn sbtn-green" onclick="sendWs()">📡 Send</button>
+      <button class="sbtn sbtn-gray"  onclick="sendJson('ALL_OFF')">ALL OFF</button>
+      <button class="sbtn sbtn-gray"  onclick="sendJson('ALL_ON')">ALL ON</button>
+    </div>
+
+    <div class="sg">
+      <div class="sg-title">Edit</div>
+      <button class="sbtn sbtn-gray" onclick="clearAll()">🗑 Clear all</button>
+      <button class="sbtn sbtn-gray" onclick="fillAll()">■ Fill all</button>
+    </div>
+
+    <div class="sg">
+      <div class="sg-title">Info</div>
+      <div id="info"></div>
+    </div>
+  </div>
+</div>
+
+<div id="statusbar">
+  <span id="st-pos">Van: —  Row: —</span>
+  <span id="st-frames">Frames: —</span>
+  <span id="st-dur">Duration: —</span>
+  <span id="st-size">Size: —</span>
+</div>
+
+<script>
+// ── Constants ──────────────────────────────────────────────
+const VALVES = 80;
+const RULER_H = 18; // px height of horizontal ruler
+const TS_RESET = 0xFFFFFFFF;
+const TS_START = 0xFFFFFFFE;
+
+// ── State ──────────────────────────────────────────────────
+let cellSize = 10;
+let numRows  = 64;
+let rowMs    = 80;
+let grid     = [];        // grid[row] = Uint8Array(80)
+let tool     = 'draw';
+let painting = false;
+let paintVal = 1;         // value being painted
+let playTimer = null;
+let playRow   = -1;
+
+// ── Init ───────────────────────────────────────────────────
+function newGrid(rows, copyOld) {
+  return Array.from({length: rows}, (_, r) =>
+    (copyOld && r < grid.length) ? new Uint8Array(grid[r]) : new Uint8Array(VALVES)
+  );
+}
+
+function applySettings() {
+  const r = parseInt(document.getElementById('s-rows').value)  || 64;
+  const m = parseInt(document.getElementById('s-rowms').value) || 80;
+  numRows = Math.max(1, Math.min(2000, r));
+  rowMs   = Math.max(1, m);
+  grid    = newGrid(numRows, true);
+  document.getElementById('s-rows').value  = numRows;
+  document.getElementById('s-rowms').value = rowMs;
+  resizeCanvases();
+  render();
+  updateStatus();
+}
+
+// ── Canvas setup ──────────────────────────────────────────
+const rulerH = document.getElementById('ruler-h');
+const rctx   = rulerH.getContext('2d');
+const canvas = document.getElementById('grid-canvas');
+const ctx    = canvas.getContext('2d');
+
+function resizeCanvases() {
+  const w = VALVES * cellSize + 1;
+  rulerH.width  = w;
+  rulerH.height = RULER_H;
+  canvas.width  = w;
+  canvas.height = numRows * cellSize + 1;
+  drawRuler();
+  render();
+}
+
+function setZoom(z) {
+  cellSize = Math.max(3, Math.min(32, z));
+  document.getElementById('zoom').value = cellSize;
+  resizeCanvases();
+}
+
+// ── Ruler ─────────────────────────────────────────────────
+function drawRuler() {
+  const w = rulerH.width;
+  rctx.fillStyle = '#0d1117';
+  rctx.fillRect(0, 0, w, RULER_H);
+  rctx.fillStyle = '#30363d';
+  rctx.fillRect(0, RULER_H - 1, w, 1);
+
+  rctx.font = `${Math.min(cellSize - 1, 10)}px monospace`;
+  rctx.textAlign = 'center';
+  rctx.textBaseline = 'middle';
+
+  for (let v = 0; v < VALVES; v++) {
+    const x = v * cellSize + cellSize / 2;
+    // Board boundary marker
+    if (v % 8 === 0) {
+      rctx.fillStyle = '#388bfd';
+      rctx.fillRect(v * cellSize, 0, 1, RULER_H - 1);
+      rctx.fillStyle = '#388bfd';
+      if (cellSize >= 8) rctx.fillText(`B${v/8+1}`, x + cellSize * 3.5, RULER_H / 2);
+    }
+    // Valve number every 10
+    if (cellSize >= 7 && (v + 1) % 10 === 0) {
+      rctx.fillStyle = '#6e7681';
+      rctx.fillText(v + 1, x, RULER_H / 2);
+    }
+  }
+}
+
+// ── Render ────────────────────────────────────────────────
+function render() {
+  const W = canvas.width, H = canvas.height;
+  ctx.fillStyle = '#010409';
+  ctx.fillRect(0, 0, W, H);
+
+  // Cells
+  for (let r = 0; r < numRows; r++) {
+    const isPlay = r === playRow;
+    for (let v = 0; v < VALVES; v++) {
+      if (grid[r][v]) {
+        const hue = 190 + (v / VALVES) * 50;
+        ctx.fillStyle = isPlay
+          ? `hsl(${hue}, 100%, 88%)`
+          : `hsl(${hue}, 85%, 58%)`;
+        ctx.fillRect(v * cellSize + 1, r * cellSize + 1, cellSize - 1, cellSize - 1);
+      }
+    }
+    // Playback highlight row
+    if (isPlay) {
+      ctx.fillStyle = 'rgba(255, 220, 80, 0.08)';
+      ctx.fillRect(0, r * cellSize, W, cellSize);
+    }
+  }
+
+  // Grid lines
+  ctx.lineWidth = 0.5;
+  for (let v = 0; v <= VALVES; v++) {
+    ctx.strokeStyle = (v % 8 === 0) ? '#21262d' : '#0d1117';
+    ctx.beginPath();
+    ctx.moveTo(v * cellSize + 0.5, 0);
+    ctx.lineTo(v * cellSize + 0.5, H);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = '#0d1117';
+  for (let r = 0; r <= numRows; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, r * cellSize + 0.5);
+    ctx.lineTo(W, r * cellSize + 0.5);
+    ctx.stroke();
+  }
+}
+
+// ── Mouse ─────────────────────────────────────────────────
+function cellAt(e) {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    v: Math.floor((e.clientX - rect.left)  / cellSize),
+    r: Math.floor((e.clientY - rect.top)   / cellSize),
+  };
+}
+
+function inBounds(v, r) { return v >= 0 && v < VALVES && r >= 0 && r < numRows; }
+
+function applyTool(v, r) {
+  if (!inBounds(v, r)) return;
+  switch (tool) {
+    case 'draw':
+    case 'erase': {
+      const bw = parseInt(document.getElementById('brush-w').value) || 1;
+      const bh = parseInt(document.getElementById('brush-h').value) || 1;
+      const val = tool === 'erase' ? 0 : paintVal;
+      const r0 = r - Math.floor((bh - 1) / 2);
+      const v0 = v - Math.floor((bw - 1) / 2);
+      for (let dr = 0; dr < bh; dr++) {
+        const rr = r0 + dr;
+        if (rr < 0 || rr >= numRows) continue;
+        for (let dv = 0; dv < bw; dv++) {
+          const vv = v0 + dv;
+          if (vv >= 0 && vv < VALVES) grid[rr][vv] = val;
+        }
+      }
+      break;
+    }
+    case 'fillrow':  grid[r].fill(1); break;
+    case 'clearrow': grid[r].fill(0); break;
+    case 'fillcol':
+      for (let i = 0; i < numRows; i++) grid[i][v] = paintVal;
+      break;
+  }
+}
+
+canvas.addEventListener('mousedown', e => {
+  const {v, r} = cellAt(e);
+  if (!inBounds(v, r)) return;
+  painting = true;
+  // draw: toggle based on current cell; erase always 0
+  paintVal = (tool === 'erase') ? 0 : (tool === 'draw' ? (grid[r][v] ? 0 : 1) : 1);
+  applyTool(v, r);
+  render();
+  updateStatusPos(v, r);
+});
+
+canvas.addEventListener('mousemove', e => {
+  const {v, r} = cellAt(e);
+  updateStatusPos(v, r);
+  if (!painting) return;
+  applyTool(v, r);
+  render();
+});
+
+canvas.addEventListener('mouseup',    () => { painting = false; });
+canvas.addEventListener('mouseleave', () => { painting = false; });
+
+// Prevent page scroll when hovering canvas
+canvas.addEventListener('wheel', e => { e.stopPropagation(); }, {passive: true});
+
+// ── Tool selection ─────────────────────────────────────────
+const TOOLS = ['draw','erase','fillrow','clearrow','fillcol'];
+function setTool(t) {
+  tool = t;
+  TOOLS.forEach(id => {
+    const el = document.getElementById('btn-' + id);
+    if (el) el.classList.toggle('active', id === t);
+  });
+}
+
+// ── Edit operations ────────────────────────────────────────
+function clearAll() { grid = newGrid(numRows, false); render(); updateStatus(); }
+function fillAll()  { for (let r=0; r<numRows; r++) grid[r].fill(1); render(); updateStatus(); }
+
+function mirrorH() {
+  for (let r = 0; r < numRows; r++) {
+    for (let v = 0; v < Math.floor(VALVES/2); v++) {
+      const m = VALVES - 1 - v;
+      const merged = grid[r][v] | grid[r][m];
+      grid[r][v] = merged; grid[r][m] = merged;
+    }
+  }
+  render();
+}
+
+function invert() {
+  for (let r=0; r<numRows; r++) for (let v=0; v<VALVES; v++) grid[r][v] ^= 1;
+  render();
+}
+
+function shiftDown() {
+  const last = grid[numRows - 1];
+  for (let r = numRows - 1; r > 0; r--) grid[r] = grid[r-1];
+  grid[0] = new Uint8Array(VALVES);
+  render();
+}
+
+function shiftUp() {
+  const first = grid[0];
+  for (let r = 0; r < numRows - 1; r++) grid[r] = grid[r+1];
+  grid[numRows-1] = new Uint8Array(VALVES);
+  render();
+}
+
+// ── Playback ──────────────────────────────────────────────
+function togglePlay() {
+  const btn = document.getElementById('btn-play');
+  if (playTimer) {
+    clearInterval(playTimer);
+    playTimer = null;
+    playRow = -1;
+    btn.textContent = '▶ Play';
+    btn.classList.remove('active');
+    render();
+    return;
+  }
+  const speed = parseFloat(document.getElementById('speed').value) || 1;
+  const rms   = parseInt(document.getElementById('s-rowms').value) || 80;
+  const ms    = Math.max(16, rms / speed);
+  playRow = 0;
+  btn.textContent = '⏹ Stop';
+  btn.classList.add('active');
+  playTimer = setInterval(() => {
+    playRow = (playRow + 1) % numRows;
+    render();
+  }, ms);
+}
+
+// ── Binary builder ────────────────────────────────────────
+function buildBin() {
+  rowMs = parseInt(document.getElementById('s-rowms').value) || 80;
+  const totalFrames = numRows + 3; // RESET + START + data + sentinel
+  const buf  = new ArrayBuffer(totalFrames * 14);
+  const view = new DataView(buf);
+  let off = 0;
+
+  function writeU32LE(v) {
+    // handle 0xFFFFFFFF / 0xFFFFFFFE properly (avoid signed overflow)
+    view.setUint8(off,   v & 0xFF);
+    view.setUint8(off+1, (v >>> 8)  & 0xFF);
+    view.setUint8(off+2, (v >>> 16) & 0xFF);
+    view.setUint8(off+3, (v >>> 24) & 0xFF);
+    off += 4;
+  }
+
+  function writeFrame(ts, bits) {
+    writeU32LE(ts);
+    for (let i = 0; i < 10; i++) view.setUint8(off++, bits ? bits[i] : 0);
+  }
+
+  function rowBits(r) {
+    const b = new Uint8Array(10);
+    for (let v = 0; v < VALVES; v++)
+      if (grid[r][v]) b[v >> 3] |= (1 << (7 - (v & 7)));
+    return b;
+  }
+
+  writeFrame(TS_RESET, null);
+  writeFrame(TS_START, null);
+  for (let r = 0; r < numRows; r++) writeFrame(r * rowMs, rowBits(r));
+  writeFrame(numRows * rowMs, null); // sentinel all-off
+
+  return new Uint8Array(buf);
+}
+
+// ── Export ────────────────────────────────────────────────
+function exportBin() {
+  const data = buildBin();
+  const blob = new Blob([data], {type: 'application/octet-stream'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'waterfall_effect.bin';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── WebSocket send ────────────────────────────────────────
+function sendWs() {
+  const addr = document.getElementById('s-ip').value.trim();
+  const ws = new WebSocket(`ws://${addr}`);
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => {
+    const data = buildBin();
+    // Send in chunks of 400 frames to stay under queue limit
+    const CHUNK = 400 * 14;
+    // First 2 frames (RESET+START) always sent together
+    ws.send(data.buffer.slice(0, 28)); // RESET + START
+    for (let i = 28; i < data.length; i += CHUNK) {
+      ws.send(data.buffer.slice(i, Math.min(i + CHUNK, data.length)));
+    }
+    setTimeout(() => ws.close(), 500);
+    alert(`Đã gửi ${data.length} bytes (${data.length/14} frames) tới ws://${addr}`);
+  };
+  ws.onerror = () => alert('Không kết nối được tới ws://' + addr);
+}
+
+function sendJson(cmd) {
+  const addr = document.getElementById('s-ip').value.trim();
+  const ws = new WebSocket(`ws://${addr}`);
+  ws.onopen = () => { ws.send(JSON.stringify({cmd})); setTimeout(() => ws.close(), 200); };
+  ws.onerror = () => alert('Không kết nối được.');
+}
+
+// ── Status ────────────────────────────────────────────────
+function updateStatusPos(v, r) {
+  const board = Math.floor(v / 8) + 1;
+  document.getElementById('st-pos').textContent =
+    `Van: ${v+1} (B${board})  Row: ${r+1}`;
+}
+
+function updateStatus() {
+  const rms = parseInt(document.getElementById('s-rowms').value) || rowMs;
+  const frames = numRows + 3;
+  const dur    = numRows * rms;
+  const bytes  = frames * 14;
+  const onCnt  = grid.reduce((s, row) => s + row.reduce((a, x) => a + x, 0), 0);
+  document.getElementById('st-frames').textContent  = `Frames: ${frames}`;
+  document.getElementById('st-dur').textContent     = `Duration: ${dur} ms`;
+  document.getElementById('st-size').textContent    = `Size: ${bytes} bytes`;
+  document.getElementById('info').innerHTML = `
+    Rows: <b>${numRows}</b><br>
+    Row ms: <b>${rms}</b><br>
+    Duration: <b>${(dur/1000).toFixed(2)} s</b><br>
+    ON cells: <b>${onCnt}</b><br>
+    File: <b>${bytes} B</b>
+  `;
+}
+
+document.getElementById('s-rowms').addEventListener('input', updateStatus);
+document.getElementById('s-rows').addEventListener('input', updateStatus);
+
+// ── Bootstrap ─────────────────────────────────────────────
+grid = newGrid(64, false);
+resizeCanvases();
+updateStatus();
+</script>
+</body>
+</html>

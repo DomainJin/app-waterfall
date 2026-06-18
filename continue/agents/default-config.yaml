@@ -1,0 +1,49 @@
+name: Default Config
+version: 0.0.1
+schema: v1
+models:
+  - name: Mercury Coder
+    provider: inception
+    model: mercury-coder
+    apiKey: ${{ secrets.INCEPTION_API_KEY }}
+    roles:
+      - autocomplete
+      - apply
+    capabilities:
+      - next_edit
+    defaultCompletionOptions:
+      temperature: 0
+      stop:
+        - <|endoftext|>
+        - <|/code_to_edit|>
+    promptTemplates:
+      apply: |-
+        <|original_code|>
+        {{{ original_code }}}
+        <|/original_code|>
+
+        <|update_snippet|>
+        {{{ new_code }}}
+        <|/update_snippet|>
+  - name: Claude Sonnet 4.6
+    provider: anthropic
+    model: claude-sonnet-4-6
+    apiKey: ${{ secrets.ANTHROPIC_API_KEY }}
+    roles:
+      - chat
+      - edit
+      - apply
+    defaultCompletionOptions:
+      contextLength: 200000
+      maxTokens: 64000
+    capabilities:
+      - tool_use
+      - image_input
+mcpServers:
+  - name: Context7 MCP
+    type: streamable-http
+    url: https://mcp.context7.com/mcp
+context:
+  - provider: diff
+  - provider: terminal
+  - provider: file
