@@ -28,6 +28,15 @@ export type PreviewMessage =
       positionMs: number;
       isPlaying: boolean;
       durationMs: number;
+    }
+  | {
+      // LED matrix only ever shows the CURRENT instant (no falling/history,
+      // unlike the valve grid) — flat row-major R,G,B per cell, length =
+      // rows*cols*3, re-sent live as the playhead moves.
+      type: 'led';
+      cols: number;
+      rows: number;
+      rgb: Uint8Array;
     };
 
 export interface PreviewSync {

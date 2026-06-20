@@ -16,6 +16,8 @@ export function usePreviewRenderer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [valveOn, setValveOn] = useState(true);
   const valveOnRef = useRef(true);
+  const [ledOn, setLedOn] = useState(true);
+  const ledOnRef = useRef(true);
   const [connected, setConnected] = useState(false);
 
   const stateRef = useRef<CurtainState>({
@@ -28,11 +30,18 @@ export function usePreviewRenderer() {
     positionMs: 0,
     durationMs: 0,
     fall_time_ms: DEFAULT_FALL_TIME_MS,
+    ledRgb: null,
+    ledRows: 0,
+    ledCols: 0,
   });
 
   useEffect(() => {
     valveOnRef.current = valveOn;
   }, [valveOn]);
+
+  useEffect(() => {
+    ledOnRef.current = ledOn;
+  }, [ledOn]);
 
   useEffect(() => {
     const bridge = window.previewSync;
@@ -49,6 +58,10 @@ export function usePreviewRenderer() {
       } else if (msg.type === 'transport') {
         s.positionMs = msg.positionMs;
         s.durationMs = msg.durationMs;
+      } else if (msg.type === 'led') {
+        s.ledRgb = msg.rgb;
+        s.ledRows = msg.rows;
+        s.ledCols = msg.cols;
       }
       setConnected(true);
     });
@@ -71,7 +84,7 @@ export function usePreviewRenderer() {
             canvas.height = h;
           }
         }
-        drawCurtain(canvas, s, valveOnRef.current);
+        drawCurtain(canvas, s, valveOnRef.current, ledOnRef.current);
       }
       raf = requestAnimationFrame(loop);
     };
@@ -87,6 +100,8 @@ export function usePreviewRenderer() {
     canvasRef,
     valveOn,
     toggleValve: () => setValveOn((v) => !v),
+    ledOn,
+    toggleLed: () => setLedOn((v) => !v),
     connected,
   };
 }

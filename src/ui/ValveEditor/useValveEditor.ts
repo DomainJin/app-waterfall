@@ -14,9 +14,15 @@ export function useValveEditor() {
   const durationMs = useTimelineStore((s) => s.durationMs);
 
   const threshold = useValveStore((s) => s.threshold);
+  const invert = useValveStore((s) => s.invert);
+  const flipH = useValveStore((s) => s.flipH);
+  const flipV = useValveStore((s) => s.flipV);
   const mode = useValveStore((s) => s.mode);
   const paint = useValveStore((s) => s.paint);
   const setThreshold = useValveStore((s) => s.setThreshold);
+  const setInvert = useValveStore((s) => s.setInvert);
+  const setFlipH = useValveStore((s) => s.setFlipH);
+  const setFlipV = useValveStore((s) => s.setFlipV);
   const setMode = useValveStore((s) => s.setMode);
   const togglePaint = useValveStore((s) => s.togglePaint);
   const paintColumn = useValveStore((s) => s.paintColumn);
@@ -35,11 +41,17 @@ export function useValveEditor() {
   const B = geo.valve_bytes_per_frame;
   const row_ms = geo.row_interval_ms;
   const edge_margin = geo.edge_margin;
+  const visibleRows = geo.visible_rows;
   const valveRows = Math.max(1, Math.ceil(durationMs / row_ms));
   const currentRow = Math.min(
     valveRows - 1,
     Math.max(0, Math.floor(positionMs / row_ms)),
   );
+  // Same scanline mapping computeFullGrid uses: row r reads horizontal line
+  // y_frac of the frame, wrapping back to the top every visible_rows rows
+  // (or bottom-to-top, if flipV).
+  const cyclePos = visibleRows > 0 ? (currentRow % visibleRows) / visibleRows : 0;
+  const yFrac = flipV ? 1 - cyclePos : cyclePos;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState('');
@@ -56,12 +68,12 @@ export function useValveEditor() {
     void (async () => {
       const img = await frameAt('valve', currentRow * row_ms);
       if (cancelled || !canvasRef.current) return;
-      drawValveEditor(canvasRef.current, img, cols, threshold, paint, currentRow, edge_margin);
+      drawValveEditor(canvasRef.current, img, cols, threshold, invert, paint, currentRow, edge_margin, yFrac, flipH);
     })();
     return () => {
       cancelled = true;
     };
-  }, [frameAt, currentRow, row_ms, cols, threshold, paint, edge_margin, masterName, valveBinding]);
+  }, [frameAt, currentRow, row_ms, cols, threshold, invert, flipH, paint, edge_margin, yFrac, masterName, valveBinding]);
 
   const paintCol = useCallback(
     (col: number, wholeColumn?: boolean) => {
@@ -113,11 +125,17 @@ export function useValveEditor() {
     valveRows,
     currentRow,
     threshold,
+    invert,
+    flipH,
+    flipV,
     mode,
     exporting,
     computing,
     status,
     setThreshold,
+    setInvert,
+    setFlipH,
+    setFlipV,
     setMode,
     clearPaint,
     paintCol,

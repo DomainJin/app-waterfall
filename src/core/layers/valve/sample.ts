@@ -47,3 +47,36 @@ export function sampleFrameToGrid(
   }
   return out;
 }
+
+/**
+ * Sample ONE horizontal scanline of `img` at normalized height `y_frac`
+ * (0 = top, approaching 1 = bottom) into `cols` cells, each the
+ * area-average luminance ACROSS X only (no vertical averaging) — normalized
+ * 0..1. This is the waterfall's actual read pattern: a valve row prints one
+ * pass of an inkjet head, not the whole image collapsed into one strip.
+ */
+export function sampleScanline(
+  img: FrameLike,
+  cols: number,
+  y_frac: number,
+): Float32Array {
+  const { data, width, height } = img;
+  const out = new Float32Array(cols);
+  if (cols <= 0 || width <= 0 || height <= 0) return out;
+
+  const y = Math.min(height - 1, Math.max(0, Math.floor(y_frac * height)));
+  for (let c = 0; c < cols; c++) {
+    const x0 = Math.floor((c * width) / cols);
+    const x1 = Math.min(width, Math.max(x0 + 1, Math.floor(((c + 1) * width) / cols)));
+    let sum = 0;
+    let count = 0;
+    let i = (y * width + x0) * 4;
+    for (let x = x0; x < x1; x++) {
+      sum += luma(data[i], data[i + 1], data[i + 2]);
+      i += 4;
+      count++;
+    }
+    out[c] = count ? sum / count / 255 : 0;
+  }
+  return out;
+}

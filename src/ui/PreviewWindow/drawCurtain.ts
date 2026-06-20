@@ -19,21 +19,29 @@ export interface CurtainState {
   positionMs: number;
   durationMs: number;
   fall_time_ms: number;
+  // LED matrix only ever shows the CURRENT instant (no falling/history) —
+  // flat row-major R,G,B per cell, length = ledRows*ledCols*3.
+  ledRgb: Uint8Array | null;
+  ledRows: number;
+  ledCols: number;
 }
 
 const RULER_H = 30;
+const LED_STRIP_H = 36;
 
 export function drawCurtain(
   canvas: HTMLCanvasElement,
   s: CurtainState,
   valveOn: boolean,
+  ledOn: boolean,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   const W = canvas.width;
   const H = canvas.height;
-  const curtainTop = RULER_H;
-  const curtainH = H - RULER_H;
+  const showLedStrip = ledOn && s.ledCols > 0 && s.ledRows > 0 && !!s.ledRgb;
+  const curtainTop = RULER_H + (showLedStrip ? LED_STRIP_H : 0);
+  const curtainH = H - curtainTop;
   const cols = s.cols || 0;
   const colW = cols > 0 ? W / cols : W;
   const margin = s.margin || 0;
@@ -74,6 +82,22 @@ export function drawCurtain(
       for (let v = margin; v < cols - margin; v++) {
         if (s.grid[base + v] !== 1) continue;
         ctx.fillRect(v * colW, y - cellH / 2, w, cellH);
+      }
+    }
+  }
+
+  // LED matrix strip — mounted above the curtain. Unlike the falling water
+  // (which stacks many past rows at once), the LED layer only ever shows the
+  // CURRENT instant, so this is a plain downsampled-color render, no aging.
+  if (showLedStrip && s.ledRgb) {
+    const stripTop = RULER_H;
+    const cellW = W / s.ledCols;
+    const cellH = LED_STRIP_H / s.ledRows;
+    for (let r = 0; r < s.ledRows; r++) {
+      for (let c = 0; c < s.ledCols; c++) {
+        const i = (r * s.ledCols + c) * 3;
+        ctx.fillStyle = `rgb(${s.ledRgb[i]}, ${s.ledRgb[i + 1]}, ${s.ledRgb[i + 2]})`;
+        ctx.fillRect(c * cellW, stripTop + r * cellH, Math.max(1, cellW - 1), Math.max(1, cellH - 1));
       }
     }
   }

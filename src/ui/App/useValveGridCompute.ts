@@ -20,6 +20,9 @@ export function useValveGridCompute() {
   const geo = useGeometry();
   const durationMs = useTimelineStore((s) => s.durationMs);
   const threshold = useValveStore((s) => s.threshold);
+  const invert = useValveStore((s) => s.invert);
+  const flipH = useValveStore((s) => s.flipH);
+  const flipV = useValveStore((s) => s.flipV);
   const paint = useValveStore((s) => s.paint);
   const frameAtStore = useSourceStore((s) => s.frameAt);
   const flushPendingStore = useSourceStore((s) => s.flushPending);
@@ -53,6 +56,10 @@ export function useValveGridCompute() {
         rows,
         row_ms,
         threshold,
+        invert,
+        flip_h: flipH,
+        flip_v: flipV,
+        visible_rows: geo.visible_rows,
         paint,
         edge_margin: geo.edge_margin,
         onProgress: (fraction) => {
@@ -80,8 +87,12 @@ export function useValveGridCompute() {
     geo.valve_cols,
     geo.row_interval_ms,
     geo.edge_margin,
+    geo.visible_rows,
     durationMs,
     threshold,
+    invert,
+    flipH,
+    flipV,
     paint,
     masterName,
     valveBinding.kind,

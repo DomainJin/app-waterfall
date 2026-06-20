@@ -11,9 +11,12 @@ export function drawValveEditor(
   img: FrameLike | null,
   cols: number,
   threshold: number,
+  invert: boolean,
   paint: Record<number, boolean>,
   currentRow: number,
   edge_margin: number,
+  y_frac = 0,
+  flip_h = false,
 ) {
   const ctx = canvas.getContext('2d');
   if (!ctx || cols <= 0) return;
@@ -48,6 +51,14 @@ export function drawValveEditor(
       );
     // Full video squeezed into the active band (matches the sampling).
     ctx.drawImage(tmp, bandX0, 0, bandW, frameH);
+    // The scanline THIS row actually reads (not the whole frame averaged).
+    const lineY = Math.min(frameH - 1, Math.max(0, y_frac * frameH));
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bandX0, lineY);
+    ctx.lineTo(bandX0 + bandW, lineY);
+    ctx.stroke();
   } else if (active > 0) {
     ctx.fillStyle = '#5a6573';
     ctx.font = '12px system-ui';
@@ -55,7 +66,7 @@ export function drawValveEditor(
   }
 
   // Valve states for the current row (the exported result).
-  const rowBool = frameToValveRow(img, cols, margin, threshold);
+  const rowBool = frameToValveRow(img, cols, margin, threshold, invert, y_frac, flip_h);
   for (let c = 0; c < cols; c++) {
     const isEdge = c < margin || c >= cols - margin;
     const idx = currentRow * cols + c;

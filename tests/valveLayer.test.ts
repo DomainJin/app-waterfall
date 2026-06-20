@@ -10,6 +10,7 @@ import {
   gridToRows,
   maskEdges,
   sampleFrameToGrid,
+  sampleScanline,
   thresholdGrid,
   type FrameLike,
 } from '../src/core/layers/valve';
@@ -71,10 +72,41 @@ describe('sampleFrameToGrid', () => {
   });
 });
 
+describe('sampleScanline', () => {
+  // 1-col-wide, 3-row-tall image: row0=white, row1=black, row2=white.
+  const stripes = makeFrame(1, 3, (_x, y) => (y === 1 ? [0, 0, 0] : [255, 255, 255]));
+
+  it('reads ONLY the requested line, not an average over height', () => {
+    expect(sampleScanline(stripes, 1, 0)[0]).toBeCloseTo(1, 5); // y=0 -> white
+    expect(sampleScanline(stripes, 1, 1 / 3)[0]).toBeCloseTo(0, 5); // y=1 -> black
+    expect(sampleScanline(stripes, 1, 2 / 3)[0]).toBeCloseTo(1, 5); // y=2 -> white
+  });
+
+  it('averaging the same image over its full height would hide this (sanity check)', () => {
+    // Confirms the three lines really do differ — sampleFrameToGrid(img,1,1)
+    // collapses them into one indistinguishable value.
+    expect(sampleFrameToGrid(stripes, 1, 1)[0]).toBeCloseTo(2 / 3, 5);
+  });
+
+  it('degenerate dims -> zeros', () => {
+    expect([...sampleScanline(stripes, 0, 0)]).toEqual([]);
+  });
+});
+
 describe('thresholdGrid', () => {
   it('intensity >= threshold -> on', () => {
     const out = thresholdGrid(new Float32Array([0.8, 0.5, 0.2]), 0.5);
     expect([...out]).toEqual([1, 1, 0]);
+  });
+
+  it('invert flips the comparison: intensity < threshold -> on', () => {
+    const out = thresholdGrid(new Float32Array([0.8, 0.5, 0.2]), 0.5, true);
+    expect([...out]).toEqual([0, 0, 1]);
+  });
+
+  it('invert=false is the same as omitting it (old behaviour unchanged)', () => {
+    const intensity = new Float32Array([0.9, 0.4, 0.5, 0.1]);
+    expect([...thresholdGrid(intensity, 0.5, false)]).toEqual([...thresholdGrid(intensity, 0.5)]);
   });
 });
 
@@ -235,6 +267,56 @@ describe('edge_margin mapping', () => {
   });
 });
 
+describe('invert threshold (dark shape on light background -> shape is water)', () => {
+  // 4x2 frame: left half white (bright), right half black (dark) — like a
+  // "heart" silhouette (dark) on a light background, simplified to two cols.
+  it('invert=false (default): bright -> on, dark -> off (old behaviour)', () => {
+    const row = frameToValveRow(halfWhite, 4, 0, 0.5);
+    expect([...row]).toEqual([1, 1, 0, 0]); // left (bright) on, right (dark) off
+  });
+
+  it('invert=true: dark -> on, bright -> off (the shape becomes the water)', () => {
+    const row = frameToValveRow(halfWhite, 4, 0, 0.5, true);
+    expect([...row]).toEqual([0, 0, 1, 1]); // left (bright) off, right (dark) on
+  });
+
+  it('computeFullGrid threads invert through to every row', async () => {
+    const gridOff = await computeFullGrid({
+      frameAt: async () => halfWhite,
+      cols: 4,
+      rows: 2,
+      row_ms: 80,
+      threshold: 0.5,
+    });
+    expect([...gridOff]).toEqual([1, 1, 0, 0, 1, 1, 0, 0]);
+
+    const gridOn = await computeFullGrid({
+      frameAt: async () => halfWhite,
+      cols: 4,
+      rows: 2,
+      row_ms: 80,
+      threshold: 0.5,
+      invert: true,
+    });
+    expect([...gridOn]).toEqual([0, 0, 1, 1, 0, 0, 1, 1]);
+  });
+
+  it('buildValveBin export reflects invert: shape region on, background off', async () => {
+    const grid = await computeFullGrid({
+      frameAt: async () => halfWhite,
+      cols: 4,
+      rows: 1,
+      row_ms: 80,
+      threshold: 0.5,
+      invert: true,
+    });
+    const bin = buildValveBin({ grid, cols: 4, rows: 1, row_ms: 80, B: 1, mode: 'grid' });
+    const fs = parseStream(bin, 1);
+    // valves: 0,1 bright(off) -> bits 0,0 ; 2,3 dark(on) -> bits 1,1 => 0011 0000 = 0x30
+    expect(fs[3][4]).toBe(0x30);
+  });
+});
+
 describe('buildValveBin (integration, reading a precomputed grid)', () => {
   const frameAt = async () => halfWhite; // left valve on, right off, every row
 
@@ -286,6 +368,130 @@ describe('buildValveBin (integration, reading a precomputed grid)', () => {
     const fs = parseStream(bin, 1);
     // RESET, CONFIG, START, row0, sentinel -> row0 = fs[3]
     expect(fs[3][4]).toBe(0x40); // valve 1 -> 0x40
+  });
+});
+
+describe('scanline mapping (waterfall is an inkjet: each row reads a different line, not the whole frame)', () => {
+  // A static "heart-ish" silhouette: 39px tall, narrow band of "ink" near the
+  // top (the heart's notch), a wide band in the middle (the heart's widest
+  // point), narrow again toward the bottom (the point at the base). White =
+  // background, black = the shape. Single column (cols=1) keeps the
+  // assertions about WHICH rows are on/off unambiguous.
+  const HEART_H = 39;
+  const heart = makeFrame(1, HEART_H, (_x, y) => {
+    const inShape = y >= 13 && y <= 25; // the wide middle third
+    return inShape ? [0, 0, 0] : [255, 255, 255];
+  });
+
+  it('rows 0-38 read 39 DIFFERENT scanlines — not the same averaged frame', async () => {
+    const grid = await computeFullGrid({
+      frameAt: async () => heart,
+      cols: 1,
+      rows: HEART_H,
+      row_ms: 10,
+      threshold: 0.5,
+      invert: true, // dark shape = water
+      visible_rows: HEART_H,
+    });
+    // Deep inside each band (avoids ±1 rounding right at a band edge).
+    expect(grid[5]).toBe(0); // top notch: background, off
+    expect(grid[19]).toBe(1); // widest point: the shape, on
+    expect(grid[32]).toBe(0); // base point: background, off
+
+    // The old bug (sampleFrameToGrid(img, cols, 1): average the WHOLE
+    // height into one row) would make every row identical. Assert that
+    // doesn't happen — a real composite needs more than one distinct value.
+    const distinct = new Set(grid);
+    expect(distinct.size).toBeGreaterThan(1);
+  });
+
+  it('row (visible_rows + k) repeats row k — wraps back to the top of the frame', async () => {
+    const rows = HEART_H * 2; // two full passes over the same static image
+    const grid = await computeFullGrid({
+      frameAt: async () => heart,
+      cols: 1,
+      rows,
+      row_ms: 10,
+      threshold: 0.5,
+      invert: true,
+      visible_rows: HEART_H,
+    });
+    for (const k of [5, 19, 32]) {
+      expect(grid[HEART_H + k]).toBe(grid[k]);
+    }
+  });
+
+  it('frameToValveRow: two different y_frac values on the same image can disagree', () => {
+    const top = frameToValveRow(heart, 1, 0, 0.5, true, 5 / HEART_H);
+    const middle = frameToValveRow(heart, 1, 0, 0.5, true, 19 / HEART_H);
+    expect(top[0]).toBe(0);
+    expect(middle[0]).toBe(1);
+  });
+
+  it('visible_rows omitted defaults to `rows` (scan once, no wrap) without throwing', async () => {
+    const grid = await computeFullGrid({
+      frameAt: async () => heart,
+      cols: 1,
+      rows: HEART_H,
+      row_ms: 10,
+      threshold: 0.5,
+      invert: true,
+    });
+    expect(new Set(grid).size).toBeGreaterThan(1);
+  });
+});
+
+describe('flip_h / flip_v (mirror left<->right / scan bottom-to-top)', () => {
+  // 4 cols x 8 rows. A single dark pixel at (x=0, y=2), everything else
+  // white. invert=true (dark = water). Powers of 2 keep every fraction
+  // (1/8, 2/8, 3/8, ...) exactly representable, so the expected row index
+  // for a given scanline is unambiguous (no floating-point edge cases).
+  const W = 4;
+  const H = 8;
+  const dot = makeFrame(W, H, (x, y) => (x === 0 && y === 2 ? [0, 0, 0] : [255, 255, 255]));
+  const params = {
+    frameAt: async () => dot,
+    cols: W,
+    rows: H,
+    row_ms: 10,
+    threshold: 0.5,
+    invert: true,
+    visible_rows: H,
+  };
+  // Without any flip: row 2 reads y=2 (the dot, at col 0) -> [1,0,0,0].
+  // flip_v alone moves the row that reads y=2 from row 2 to row 6.
+  // flip_h alone mirrors columns within whichever row reads the dot.
+  const rowAt = (grid: Uint8Array, r: number) => [...grid.slice(r * W, r * W + W)];
+
+  it('off (default): old behaviour — row 2 = [1,0,0,0], row 6 = all off', async () => {
+    const grid = await computeFullGrid(params);
+    expect(rowAt(grid, 2)).toEqual([1, 0, 0, 0]);
+    expect(rowAt(grid, 6)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('flip_h: mirrors columns — row 2 = [0,0,0,1] (left<->right), row index unchanged', async () => {
+    const grid = await computeFullGrid({ ...params, flip_h: true });
+    expect(rowAt(grid, 2)).toEqual([0, 0, 0, 1]);
+    expect(rowAt(grid, 6)).toEqual([0, 0, 0, 0]);
+  });
+
+  it('flip_v: mirrors the scan direction — the dot now shows up at row 6, not row 2', async () => {
+    const grid = await computeFullGrid({ ...params, flip_v: true });
+    expect(rowAt(grid, 2)).toEqual([0, 0, 0, 0]);
+    expect(rowAt(grid, 6)).toEqual([1, 0, 0, 0]);
+  });
+
+  it('both flip_h + flip_v together = 180° rotation (row AND column mirrored)', async () => {
+    const grid = await computeFullGrid({ ...params, flip_h: true, flip_v: true });
+    expect(rowAt(grid, 2)).toEqual([0, 0, 0, 0]);
+    expect(rowAt(grid, 6)).toEqual([0, 0, 0, 1]);
+  });
+
+  it('frameToValveRow: flip_h reorders bits[active-1-k] directly', () => {
+    const plain = frameToValveRow(dot, W, 0, 0.5, true, 2 / H);
+    const flipped = frameToValveRow(dot, W, 0, 0.5, true, 2 / H, true);
+    expect([...plain]).toEqual([1, 0, 0, 0]);
+    expect([...flipped]).toEqual([0, 0, 0, 1]);
   });
 });
 

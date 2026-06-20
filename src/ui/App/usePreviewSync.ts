@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { flattenRgb } from '../../core/layers/led';
 import { useGeometry } from '../../store/physical';
+import { useLedStore } from '../../store/led';
 import { useTimelineStore } from '../../store/timeline';
 import { useValveStore } from '../../store/valve';
 
@@ -9,6 +11,9 @@ import { useValveStore } from '../../store/valve';
 // transport tick for the playhead. There is no live video sampling here:
 // the preview reads the exact same flat array Play does, so replay is
 // always identical regardless of how fast the video seeks on this run.
+//
+// The LED matrix (Phase 8) is the opposite: it has no history to replay, so
+// it's just forwarded live as useLedGridCompute keeps it fresh.
 export function usePreviewSync() {
   const [previewReady, setPreviewReady] = useState(false);
 
@@ -17,12 +22,52 @@ export function usePreviewSync() {
   const gridRows = useValveStore((s) => s.gridRows);
   const gridCols = useValveStore((s) => s.gridCols);
 
-  // Preview window announces itself; (re)send everything when it (re)opens.
+  const ledMatrix = useLedStore((s) => s.matrix);
+  const ledRows = useLedStore((s) => s.matrixRows);
+  const ledCols = useLedStore((s) => s.matrixCols);
+
+  // A closed-then-reopened preview window is a BRAND NEW renderer with no
+  // memory of anything sent before — it announces itself with another
+  // 'ready', but `previewReady` is already true by then, so the effects
+  // below (keyed on `[previewReady, ...]`) would never re-fire to give it
+  // anything. Keep the latest values in a ref so the 'ready' handler can
+  // always replay the CURRENT grid + transport snapshot immediately,
+  // regardless of whether `previewReady` itself actually changed.
+  const latestRef = useRef({ geo, valveGrid, gridRows, gridCols, ledMatrix, ledRows, ledCols });
+  latestRef.current = { geo, valveGrid, gridRows, gridCols, ledMatrix, ledRows, ledCols };
+
+  // Preview window announces itself; (re)send everything every time it
+  // (re)opens, not just the first time.
   useEffect(() => {
     const bridge = window.previewSync;
     if (!bridge) return;
     return bridge.onPreviewNotify((msg) => {
-      if (msg === 'ready') setPreviewReady(true);
+      if (msg !== 'ready') return;
+      setPreviewReady(true);
+
+      const { geo, valveGrid, gridRows, gridCols, ledMatrix, ledRows, ledCols } = latestRef.current;
+      if (valveGrid) {
+        bridge.pushToPreview({
+          type: 'grid',
+          cols: gridCols,
+          rows: gridRows,
+          row_ms: geo.row_interval_ms,
+          margin: geo.edge_margin,
+          length_m: geo.length_m,
+          fall_time_ms: geo.fall_time_ms,
+          bits: valveGrid,
+        });
+      }
+      if (ledMatrix) {
+        bridge.pushToPreview({ type: 'led', cols: ledCols, rows: ledRows, rgb: flattenRgb(ledMatrix) });
+      }
+      const t = useTimelineStore.getState();
+      bridge.pushToPreview({
+        type: 'transport',
+        positionMs: t.positionMs,
+        isPlaying: t.isPlaying,
+        durationMs: t.durationMs,
+      });
     });
   }, []);
 
@@ -69,6 +114,15 @@ export function usePreviewSync() {
     geo.length_m,
     geo.fall_time_ms,
   ]);
+
+  // Push the LED matrix live, every time useLedGridCompute refreshes it —
+  // there's no "one precompute, many reads" here, just whatever the
+  // playhead currently sees.
+  useEffect(() => {
+    const bridge = window.previewSync;
+    if (!bridge || !previewReady || !ledMatrix) return;
+    bridge.pushToPreview({ type: 'led', cols: ledCols, rows: ledRows, rgb: flattenRgb(ledMatrix) });
+  }, [previewReady, ledMatrix, ledRows, ledCols]);
 
   return { previewReady };
 }

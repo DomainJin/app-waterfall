@@ -13,11 +13,17 @@ export function ValveEditor() {
     valveRows,
     currentRow,
     threshold,
+    invert,
+    flipH,
+    flipV,
     mode,
     exporting,
     computing,
     status,
     setThreshold,
+    setInvert,
+    setFlipH,
+    setFlipV,
     setMode,
     clearPaint,
     paintCol,
@@ -38,11 +44,17 @@ export function ValveEditor() {
 
       <ValveControls
         threshold={threshold}
+        invert={invert}
+        flipH={flipH}
+        flipV={flipV}
         mode={mode}
         exporting={exporting}
         computing={computing}
         status={status}
         onThreshold={setThreshold}
+        onInvert={setInvert}
+        onFlipH={setFlipH}
+        onFlipV={setFlipV}
         onMode={setMode}
         onClearPaint={clearPaint}
         onExport={exportBin}

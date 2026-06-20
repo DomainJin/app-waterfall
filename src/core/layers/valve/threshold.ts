@@ -1,13 +1,21 @@
 // Threshold + manual paint override. PURE.
 
-/** intensity[i] >= threshold -> valve on (1). */
+/**
+ * intensity[i] >= threshold -> valve on (1) — unless `invert`, which flips
+ * the comparison (intensity[i] < threshold -> on). Used for source material
+ * like a dark shape on a light background, where the shape (not the
+ * background) should be the water.
+ */
 export function thresholdGrid(
   intensity: Float32Array,
   threshold: number,
+  invert = false,
 ): Uint8Array {
   const out = new Uint8Array(intensity.length);
   for (let i = 0; i < intensity.length; i++) {
-    out[i] = intensity[i] >= threshold ? 1 : 0;
+    out[i] = invert
+      ? intensity[i] < threshold ? 1 : 0
+      : intensity[i] >= threshold ? 1 : 0;
   }
   return out;
 }

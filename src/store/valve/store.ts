@@ -5,6 +5,13 @@ import type { ValveMode } from '../../core/layers/valve';
 // forced on/off; absent = use the video-thresholded value.
 interface ValveState {
   threshold: number; // 0..1
+  /** Flip the threshold: dark-on-light source -> the dark shape is water,
+   *  not the background. Default off (bright -> on, the old behaviour). */
+  invert: boolean;
+  /** Mirror left<->right within the active band. Default off. */
+  flipH: boolean;
+  /** Scan bottom-to-top instead of top-to-bottom. Default off. */
+  flipV: boolean;
   mode: ValveMode;
   paint: Record<number, boolean>;
 
@@ -20,6 +27,9 @@ interface ValveState {
   progress: number;
 
   setThreshold: (t: number) => void;
+  setInvert: (invert: boolean) => void;
+  setFlipH: (flipH: boolean) => void;
+  setFlipV: (flipV: boolean) => void;
   setMode: (m: ValveMode) => void;
   /** Cycle a cell: none -> forced on -> forced off -> none. */
   togglePaint: (index: number) => void;
@@ -36,6 +46,9 @@ interface ValveState {
 
 export const useValveStore = create<ValveState>((set) => ({
   threshold: 0.5,
+  invert: false,
+  flipH: false,
+  flipV: false,
   mode: 'grid',
   paint: {},
 
@@ -47,6 +60,9 @@ export const useValveStore = create<ValveState>((set) => ({
 
   setThreshold: (t) =>
     set({ threshold: Number.isFinite(t) ? Math.min(1, Math.max(0, t)) : 0.5 }),
+  setInvert: (invert) => set({ invert }),
+  setFlipH: (flipH) => set({ flipH }),
+  setFlipV: (flipV) => set({ flipV }),
   setMode: (m) => set({ mode: m === 'smooth' ? 'smooth' : 'grid' }),
   togglePaint: (index) =>
     set((s) => {
