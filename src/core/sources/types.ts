@@ -8,6 +8,12 @@ export interface IFrameSource {
   readonly height: number;
   frameAt(t_ms: number): Promise<ImageData>;
   dispose(): void;
+  /** Abandon any queued-but-not-yet-started reads so the NEXT frameAt() call
+   *  starts immediately instead of waiting for stale work to drain (e.g. a
+   *  fresh play session after a stop shouldn't wait out a backlog built up
+   *  by the previous one). Optional — sources with no internal queue (e.g.
+   *  test mocks) don't need it. */
+  flushPending?(): void;
 }
 
 export type LayerId = 'valve' | 'led' | 'audio';

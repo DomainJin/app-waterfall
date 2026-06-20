@@ -15,7 +15,17 @@
       "Bash(cd \"C:/Users/SGM/.claude/projects/d--VXI-Chinh-waterfall-sprite/memory\" && ls -la 2>&1; echo \"---\"; cat MEMORY.md 2>&1 || echo \"\\(no MEMORY.md\\)\")",
       "Read(//c/Users/SGM/.claude/projects/d--VXI-Chinh-waterfall-sprite/memory/**)",
       "Bash(rm scripts/verify-renderer.cjs)",
-      "Bash(rmdir scripts *)"
+      "Bash(rmdir scripts *)",
+      "Bash(npx esbuild *)",
+      "Bash(node _export.mjs)",
+      "Bash(npx tsc *)",
+      "Bash(ffmpeg -version)",
+      "Bash(find \"/c/Windows\" -maxdepth 3 -iname \"*.mp4\" -o -iname \"*.wmv\" 2>/dev/null | head -5 *)",
+      "Read(//c/Windows/**)",
+      "Read(//c/Users/Public/**)",
+      "Bash(cmd.exe /c \"python --version\")",
+      "Bash(cmd.exe /c \"py --version\")",
+      "Bash(cmd.exe /c \"where ffmpeg\")"
     ]
   }
 }

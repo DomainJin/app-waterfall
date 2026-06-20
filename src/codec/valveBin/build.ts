@@ -2,12 +2,17 @@ import { TS_RESET, TS_START } from './constants';
 import { packConfigFrame, packFrame, valveBits } from './pack';
 import type { ValveEvent } from './types';
 
-// Stream builders — PURE. Stream order (firmware handoff §3):
-//   RESET → CONFIG(valve_count) → START → data frames (ts ascending) → all-off sentinel.
+// Stream builders — PURE. Stream order:
+//   CONFIG(valve_count) → RESET → START → data frames (ts ascending) → all-off sentinel.
 //
-// CONFIG is a 6-byte frame; data frames are 4 + B bytes. The stream is therefore
-// NOT a uniform frame size — a reader must dispatch on the leading u32 ts
-// (TS_CONFIG => 6 bytes, otherwise 4 + B).
+// CONFIG MUST be first (offset 0): it is the only fixed-length frame (6 bytes)
+// the firmware can read without prior knowledge. From its valve_count the
+// firmware derives B = ceil(valve_count / 8), then reads every following frame
+// as 4 + B bytes (RESET / START / data / sentinel). If CONFIG came after RESET,
+// the firmware couldn't know RESET's length yet — a dependency cycle.
+//
+// So the stream is NOT a uniform frame size: a reader takes the first 6 bytes as
+// CONFIG, then dispatches the rest on the leading u32 ts (all 4 + B here).
 
 function concat(frames: Uint8Array[]): Uint8Array {
   const total = frames.reduce((n, f) => n + f.length, 0);
@@ -32,8 +37,8 @@ export function buildAnimationGrid(
   valveCount: number,
 ): Uint8Array {
   const frames: Uint8Array[] = [
+    packConfigFrame(valveCount), // FIRST: declares valve_count -> frame width
     packFrame(TS_RESET, new Uint8Array(B)),
-    packConfigFrame(valveCount), // declare dynamic valve_count right after RESET
     packFrame(TS_START, new Uint8Array(B)),
   ];
   rows.forEach((openValves, i) => {
@@ -61,8 +66,8 @@ export function buildAnimationSmooth(
     .sort((a, b) => a.t_ms - b.t_ms || (a.on === b.on ? 0 : a.on ? -1 : 1));
 
   const frames: Uint8Array[] = [
+    packConfigFrame(valveCount), // FIRST: declares valve_count -> frame width
     packFrame(TS_RESET, new Uint8Array(B)),
-    packConfigFrame(valveCount),
     packFrame(TS_START, new Uint8Array(B)),
   ];
 

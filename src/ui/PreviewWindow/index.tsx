@@ -1,13 +1,30 @@
+import { usePreviewRenderer } from './usePreviewRenderer';
 import './styles.css';
 
-// Rendered in the second BrowserWindow (#preview route). Blank placeholder
-// for now — becomes the physical-scale valve-water + LED preview later.
+// Phase 6: dedicated preview window (2nd Electron window, #preview route).
+// Renders the valve layer as falling water at physical scale, synced to the
+// master timeline in the main window over IPC. LED layer comes in Phase 8.
 export function PreviewWindow() {
+  const { canvasRef, valveOn, toggleValve, connected } = usePreviewRenderer();
+
   return (
     <div className="preview">
-      <div>
-        <h2>Preview</h2>
-        <p>Physical-scale valve + LED preview will render here.</p>
+      <div className="preview__toolbar">
+        <span className="preview__title">Preview — valve water</span>
+        <button
+          type="button"
+          className={`preview__toggle${valveOn ? ' is-on' : ''}`}
+          onClick={toggleValve}
+        >
+          Valve {valveOn ? '✓' : '✗'}
+        </button>
+        <span className="preview__toggle preview__toggle--disabled" title="Added in Phase 8">
+          LED —
+        </span>
+        <span className="preview__conn">{connected ? '● synced' : '○ waiting'}</span>
+      </div>
+      <div className="preview__stage">
+        <canvas ref={canvasRef} />
       </div>
     </div>
   );

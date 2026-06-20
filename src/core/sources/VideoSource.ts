@@ -92,10 +92,36 @@ export class VideoSource implements IFrameSource {
     return run;
   }
 
+  /** Drop whatever's queued behind the current seek so the next frameAt()
+   *  starts immediately. Anything already chained keeps running and will
+   *  still settle on its own (its caller is awaiting it) — this only stops
+   *  NEW work from queuing behind it. */
+  flushPending(): void {
+    this.seekChain = Promise.resolve();
+  }
+
+  // Under sustained rapid-fire seeking (live preview tracking playback), the
+  // browser occasionally never fires 'seeked' for a particular target — a
+  // real, observed hang, not hypothetical. Without a timeout, that single
+  // stuck seek blocks the serialized seekChain FOREVER, freezing every future
+  // frameAt() call too. A bounded timeout guarantees this promise always
+  // settles, so one bad seek costs one missed frame instead of the whole feed.
+  private static readonly SEEK_TIMEOUT_MS = 1200;
+
   private seekAndGrab(targetSec: number): Promise<ImageData> {
     return new Promise<ImageData>((resolve, reject) => {
       const v = this.video;
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        v.removeEventListener('seeked', onSeeked);
+        reject(new Error(`seek timed out at ${targetSec.toFixed(3)}s`));
+      }, VideoSource.SEEK_TIMEOUT_MS);
       const grab = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         this.ctx!.drawImage(v, 0, 0, this._width, this._height);
         resolve(this.ctx!.getImageData(0, 0, this._width, this._height));
       };
@@ -112,6 +138,9 @@ export class VideoSource implements IFrameSource {
       try {
         v.currentTime = targetSec;
       } catch (err) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         v.removeEventListener('seeked', onSeeked);
         reject(err);
       }

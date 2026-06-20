@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useDeviceStore } from '../../store/device';
-import { usePhysicalStore } from '../../store/physical';
+import { usePhysicalStore, useGeometry } from '../../store/physical';
 
 // State wiring for the physical-config inputs. Keeps the field component thin.
 // Also enforces the device tick floor on row_interval_ms (handoff §4): the
@@ -11,13 +11,18 @@ export function usePhysicalConfig() {
   const fixedFrameBytes = usePhysicalStore((s) => s.fixedFrameBytes);
   const valveIndexBase = usePhysicalStore((s) => s.valveIndexBase);
   const led_rows = usePhysicalStore((s) => s.led_rows);
+  const edge_margin = usePhysicalStore((s) => s.edge_margin);
+  const curtain_height_m = usePhysicalStore((s) => s.curtain_height_m);
 
   const setLength = usePhysicalStore((s) => s.setLength);
   const setRowIntervalMs = usePhysicalStore((s) => s.setRowIntervalMs);
   const setFixedFrameBytes = usePhysicalStore((s) => s.setFixedFrameBytes);
   const setValveIndexBase = usePhysicalStore((s) => s.setValveIndexBase);
   const setLedRows = usePhysicalStore((s) => s.setLedRows);
+  const setEdgeMargin = usePhysicalStore((s) => s.setEdgeMargin);
+  const setCurtainHeightM = usePhysicalStore((s) => s.setCurtainHeightM);
 
+  const geo = useGeometry();
   const deviceTickMs = useDeviceStore((s) => s.tickMs);
   const floor = deviceTickMs && deviceTickMs > 0 ? deviceTickMs : 1;
   const effectiveTick = Math.max(deviceTickMs ?? 0, row_interval_ms);
@@ -42,14 +47,24 @@ export function usePhysicalConfig() {
     fixedFrameBytes,
     valveIndexBase,
     led_rows,
+    edge_margin,
     fixedOn: fixedFrameBytes != null,
     deviceTickMs,
     floor,
     effectiveTick,
+    activeCols: geo.active_cols,
+    marginValid: geo.marginValid,
+    valveCols: geo.valve_cols,
+    curtain_height_m,
+    fallTimeMs: geo.fall_time_ms,
+    visibleRows: geo.visible_rows,
+    frameDurationMs: geo.frame_duration_ms,
     setLength,
     setRowIntervalMs: setRowIntervalClamped,
     setFixedFrameBytes,
     setValveIndexBase,
     setLedRows,
+    setEdgeMargin,
+    setCurtainHeightM,
   };
 }

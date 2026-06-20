@@ -15,6 +15,7 @@ export function ValveEditor() {
     threshold,
     mode,
     exporting,
+    computing,
     status,
     setThreshold,
     setMode,
@@ -33,11 +34,13 @@ export function ValveEditor() {
       </h2>
 
       <ValveGridCanvas canvasRef={canvasRef} cols={cols} onPaintCol={paintCol} />
+      <p className="valve-editor__hint">Click = paint 1 cell · Shift+click = paint whole column</p>
 
       <ValveControls
         threshold={threshold}
         mode={mode}
         exporting={exporting}
+        computing={computing}
         status={status}
         onThreshold={setThreshold}
         onMode={setMode}

@@ -6,6 +6,7 @@
   "main": "electron/main.js",
   "type": "commonjs",
   "scripts": {
+    "predev": "npx kill-port 5173",
     "dev": "concurrently -k -n vite,electron -c blue,magenta \"npm:dev:vite\" \"npm:dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "wait-on http://localhost:5173 && node electron/launch.js",

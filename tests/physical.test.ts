@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   computeGeometry,
+  DEFAULT_CURTAIN_HEIGHT_M,
   DEFAULT_LED_ROWS,
   DEFAULT_ROW_INTERVAL_MS,
+  GRAVITY_M_S2,
   LEDS_PER_METER,
   VALVES_PER_METER,
 } from '../src/core/physical';
@@ -87,6 +89,29 @@ describe('computeGeometry — options & defaults', () => {
   });
 });
 
+describe('computeGeometry — edge_margin', () => {
+  it('default 0: active_cols = valve_cols, valid', () => {
+    const g = computeGeometry(8);
+    expect(g.edge_margin).toBe(0);
+    expect(g.active_cols).toBe(320);
+    expect(g.marginValid).toBe(true);
+  });
+
+  it('margin shrinks active_cols but NOT valve_cols / bytes', () => {
+    const g = computeGeometry(8, { edge_margin: 10 });
+    expect(g.valve_cols).toBe(320); // unchanged
+    expect(g.valve_bytes_per_frame).toBe(40); // unchanged (.bin unaffected)
+    expect(g.active_cols).toBe(300); // 320 - 2×10
+    expect(g.marginValid).toBe(true);
+  });
+
+  it('invalid when 2×margin >= valve_cols', () => {
+    const g = computeGeometry(2, { edge_margin: 40 }); // valve_cols 80, 2×40=80
+    expect(g.marginValid).toBe(false);
+    expect(g.active_cols).toBe(0);
+  });
+});
+
 describe('computeGeometry — edge cases', () => {
   it('zero / negative / NaN length -> all zeros', () => {
     for (const bad of [0, -3, NaN, Infinity]) {
@@ -100,5 +125,46 @@ describe('computeGeometry — edge cases', () => {
 
   it('is pure — repeated calls give equal results', () => {
     expect(computeGeometry(5.5)).toEqual(computeGeometry(5.5));
+  });
+});
+
+describe('computeGeometry — curtain_height_m / fall physics', () => {
+  it('defaults to DEFAULT_CURTAIN_HEIGHT_M (2.0 m)', () => {
+    const g = computeGeometry(8);
+    expect(g.curtain_height_m).toBe(DEFAULT_CURTAIN_HEIGHT_M);
+  });
+
+  it('spec example: 2.0 m, row_interval 16ms -> fall_time 639ms, visible_rows 39, frame_duration 624ms', () => {
+    const g = computeGeometry(8, { curtain_height_m: 2.0, row_interval_ms: 16 });
+    expect(g.fall_time_ms).toBeCloseTo(638.6, 1);
+    expect(Math.round(g.fall_time_ms)).toBe(639);
+    expect(g.visible_rows).toBe(39);
+    expect(g.frame_duration_ms).toBe(624);
+  });
+
+  it('fall_time_ms matches the free-fall formula t = sqrt(2h/g)', () => {
+    const h = 3.5;
+    const g = computeGeometry(8, { curtain_height_m: h });
+    expect(g.fall_time_ms).toBeCloseTo(Math.sqrt((2 * h) / GRAVITY_M_S2) * 1000, 6);
+  });
+
+  it('taller curtain -> longer fall_time and more visible_rows', () => {
+    const low = computeGeometry(8, { curtain_height_m: 1, row_interval_ms: 16 });
+    const high = computeGeometry(8, { curtain_height_m: 4, row_interval_ms: 16 });
+    expect(high.fall_time_ms).toBeGreaterThan(low.fall_time_ms);
+    expect(high.visible_rows).toBeGreaterThan(low.visible_rows);
+  });
+
+  it('frame_duration_ms = visible_rows × row_interval_ms (snapped to whole rows)', () => {
+    const g = computeGeometry(8, { curtain_height_m: 2.0, row_interval_ms: 16 });
+    expect(g.frame_duration_ms).toBe(g.visible_rows * g.row_interval_ms);
+  });
+
+  it('invalid curtain_height_m (0/negative/NaN) falls back to default', () => {
+    for (const bad of [0, -1, NaN]) {
+      expect(computeGeometry(8, { curtain_height_m: bad }).curtain_height_m).toBe(
+        DEFAULT_CURTAIN_HEIGHT_M,
+      );
+    }
   });
 });

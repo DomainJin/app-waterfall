@@ -54,4 +54,9 @@ export class SourceBinding<T extends IFrameSource = IFrameSource> {
     const source = this.resolve();
     return source ? source.frameAt(t_ms) : null;
   }
+
+  /** See IFrameSource.flushPending. No-op if the source doesn't support it. */
+  flushPending(): void {
+    this.resolve()?.flushPending?.();
+  }
 }

@@ -11,3 +11,9 @@ export const DEFAULT_ROW_INTERVAL_MS = 16;
 
 /** Default LED matrix height (vertical pixels). User-configurable. */
 export const DEFAULT_LED_ROWS = 8;
+
+/** Default curtain height (m). User-configurable. */
+export const DEFAULT_CURTAIN_HEIGHT_M = 2.0;
+
+/** Standard gravity (m/s²). */
+export const GRAVITY_M_S2 = 9.81;

@@ -19,7 +19,12 @@ export function useValveEditor() {
   const setThreshold = useValveStore((s) => s.setThreshold);
   const setMode = useValveStore((s) => s.setMode);
   const togglePaint = useValveStore((s) => s.togglePaint);
+  const paintColumn = useValveStore((s) => s.paintColumn);
   const clearPaint = useValveStore((s) => s.clearPaint);
+  const valveGrid = useValveStore((s) => s.valveGrid);
+  const gridRows = useValveStore((s) => s.gridRows);
+  const gridCols = useValveStore((s) => s.gridCols);
+  const computing = useValveStore((s) => s.computing);
 
   const frameAt = useSourceStore((s) => s.frameAt);
   // Re-draw when the valve layer's source identity changes.
@@ -29,6 +34,7 @@ export function useValveEditor() {
   const cols = geo.valve_cols;
   const B = geo.valve_bytes_per_frame;
   const row_ms = geo.row_interval_ms;
+  const edge_margin = geo.edge_margin;
   const valveRows = Math.max(1, Math.ceil(durationMs / row_ms));
   const currentRow = Math.min(
     valveRows - 1,
@@ -40,7 +46,9 @@ export function useValveEditor() {
   const [exporting, setExporting] = useState(false);
 
   // Draw the current row's frame + valve states. Keyed on currentRow (not
-  // positionMs) so it only re-fetches when the row actually changes.
+  // positionMs) so it only re-fetches when the row actually changes. This is
+  // an on-demand probe for the editor's paint overlay only — independent of
+  // the precomputed grid that drives Play/preview/export.
   useEffect(() => {
     let cancelled = false;
     const canvas = canvasRef.current;
@@ -48,33 +56,45 @@ export function useValveEditor() {
     void (async () => {
       const img = await frameAt('valve', currentRow * row_ms);
       if (cancelled || !canvasRef.current) return;
-      drawValveEditor(canvasRef.current, img, cols, threshold, paint, currentRow);
+      drawValveEditor(canvasRef.current, img, cols, threshold, paint, currentRow, edge_margin);
     })();
     return () => {
       cancelled = true;
     };
-  }, [frameAt, currentRow, row_ms, cols, threshold, paint, masterName, valveBinding]);
+  }, [frameAt, currentRow, row_ms, cols, threshold, paint, edge_margin, masterName, valveBinding]);
 
   const paintCol = useCallback(
-    (col: number) => {
-      if (col < 0 || col >= cols) return;
-      togglePaint(currentRow * cols + col);
+    (col: number, wholeColumn?: boolean) => {
+      // Edge-margin valves are always off — not paintable.
+      if (col < edge_margin || col >= cols - edge_margin) return;
+      // Default: a click paints exactly ONE cell (currentRow, col) — that's
+      // what lets a texture (a heart, a letter) be drawn row by row. Whole-
+      // column paint is an explicit Shift+click gesture, not the default.
+      if (wholeColumn) paintColumn(col, cols, valveRows, currentRow);
+      else togglePaint(currentRow * cols + col);
     },
-    [cols, currentRow, togglePaint],
+    [cols, edge_margin, currentRow, togglePaint, paintColumn, valveRows],
   );
 
-  const exportBin = useCallback(async () => {
+  // Export reads the SAME precomputed grid Play and the preview use — no
+  // separate re-sampling of the video, so the .bin is byte-for-byte what was
+  // previewed.
+  const gridReady = !computing && !!valveGrid && gridRows === valveRows && gridCols === cols;
+
+  const exportBin = useCallback(() => {
+    if (!gridReady || !valveGrid) {
+      setStatus('Grid not ready yet — wait for the compute to finish.');
+      return;
+    }
     setExporting(true);
     setStatus('Building…');
     try {
-      const bin = await buildValveBin({
-        frameAt: (t) => frameAt('valve', t),
+      const bin = buildValveBin({
+        grid: valveGrid,
         cols,
         rows: valveRows,
         row_ms,
         B,
-        threshold,
-        paint,
         mode,
       });
       const frameSize = 4 + B;
@@ -85,7 +105,7 @@ export function useValveEditor() {
     } finally {
       setExporting(false);
     }
-  }, [frameAt, cols, valveRows, row_ms, B, threshold, paint, mode]);
+  }, [gridReady, valveGrid, cols, valveRows, row_ms, B, mode]);
 
   return {
     canvasRef,
@@ -95,6 +115,7 @@ export function useValveEditor() {
     threshold,
     mode,
     exporting,
+    computing,
     status,
     setThreshold,
     setMode,

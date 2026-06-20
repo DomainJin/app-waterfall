@@ -1,5 +1,7 @@
 interface TransportControlsProps {
   isPlaying: boolean;
+  /** Disable just Play/Pause — e.g. while the valve grid is being precomputed. */
+  playDisabled?: boolean;
   onToggle: () => void;
   onStop: () => void;
   onStep: (direction: number) => void;
@@ -8,6 +10,7 @@ interface TransportControlsProps {
 // The four transport buttons: prev frame / play-pause / stop / next frame.
 export function TransportControls({
   isPlaying,
+  playDisabled,
   onToggle,
   onStop,
   onStep,
@@ -26,6 +29,7 @@ export function TransportControls({
         type="button"
         className="btn btn--icon"
         onClick={onToggle}
+        disabled={playDisabled}
         title={isPlaying ? 'Pause' : 'Play'}
       >
         {isPlaying ? '⏸' : '▶'}

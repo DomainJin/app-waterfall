@@ -23,6 +23,10 @@
   color: #7c8694;
 }
 
+.field__hint--warn {
+  color: #ff6b6b;
+}
+
 .field input,
 .field select {
   background: #0e1116;

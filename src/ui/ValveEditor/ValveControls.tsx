@@ -4,6 +4,8 @@ interface ValveControlsProps {
   threshold: number;
   mode: ValveMode;
   exporting: boolean;
+  /** The precomputed grid export reads is being (re)built — export disabled meanwhile. */
+  computing: boolean;
   status: string;
   onThreshold: (t: number) => void;
   onMode: (m: ValveMode) => void;
@@ -16,6 +18,7 @@ export function ValveControls({
   threshold,
   mode,
   exporting,
+  computing,
   status,
   onThreshold,
   onMode,
@@ -52,9 +55,9 @@ export function ValveControls({
         type="button"
         className="btn btn--sm"
         onClick={onExport}
-        disabled={exporting}
+        disabled={exporting || computing}
       >
-        {exporting ? 'Exporting…' : 'Export .bin'}
+        {exporting ? 'Exporting…' : computing ? 'Computing…' : 'Export .bin'}
       </button>
 
       {status && <span className="valve-controls__status">{status}</span>}

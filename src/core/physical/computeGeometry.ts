@@ -1,8 +1,10 @@
 // Pure geometry derivation: curtain length (m) -> all layer resolutions.
 // No UI imports, no side effects.
 import {
+  DEFAULT_CURTAIN_HEIGHT_M,
   DEFAULT_LED_ROWS,
   DEFAULT_ROW_INTERVAL_MS,
+  GRAVITY_M_S2,
   LEDS_PER_METER,
   VALVES_PER_METER,
 } from './constants';
@@ -36,9 +38,18 @@ export function computeGeometry(
     opts.fixedFrameBytes != null && opts.fixedFrameBytes > 0
       ? Math.floor(opts.fixedFrameBytes)
       : null;
+  const edge_margin =
+    opts.edge_margin != null && opts.edge_margin > 0
+      ? Math.floor(opts.edge_margin)
+      : 0;
 
   const valve_cols = Math.round(len * VALVES_PER_METER);
   const led_cols = Math.round(len * LEDS_PER_METER);
+
+  // Margin is app-side only: valve_cols (and thus the .bin / valve_count) is
+  // unchanged; only the usable middle band shrinks.
+  const active_cols = Math.max(0, valve_cols - 2 * edge_margin);
+  const marginValid = edge_margin === 0 || 2 * edge_margin < valve_cols;
 
   const derivedBytes = Math.ceil(valve_cols / 8);
   const valve_bytes_per_frame = fixedFrameBytes ?? derivedBytes;
@@ -48,6 +59,15 @@ export function computeGeometry(
       ? Math.ceil(nonNegative(opts.duration_ms) / row_interval_ms)
       : null;
 
+  const curtain_height_m =
+    opts.curtain_height_m != null && opts.curtain_height_m > 0
+      ? opts.curtain_height_m
+      : DEFAULT_CURTAIN_HEIGHT_M;
+  // Free fall from rest: h = ½gt² → t = √(2h/g).
+  const fall_time_ms = Math.sqrt((2 * curtain_height_m) / GRAVITY_M_S2) * 1000;
+  const visible_rows = Math.floor(fall_time_ms / row_interval_ms);
+  const frame_duration_ms = visible_rows * row_interval_ms;
+
   return {
     length_m: len,
     valve_cols,
@@ -55,8 +75,15 @@ export function computeGeometry(
     valve_bytes_per_frame,
     fixedFrameBytes,
     led_rows,
+    edge_margin,
+    active_cols,
+    marginValid,
     row_interval_ms,
     valveIndexBase,
     valve_rows,
+    curtain_height_m,
+    fall_time_ms,
+    visible_rows,
+    frame_duration_ms,
   };
 }

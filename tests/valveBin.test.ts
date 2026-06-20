@@ -110,31 +110,31 @@ describe('valveBits — dynamic B', () => {
   });
 });
 
-describe('buildAnimationGrid — new stream order with CONFIG', () => {
+describe('buildAnimationGrid — CONFIG-first stream order', () => {
   const B = 10;
   const fs = parseStream(buildAnimationGrid([[0], [1]], 80, B, 80), B);
 
-  it('order is RESET, CONFIG, START, data…, sentinel', () => {
-    expect(tsOf(fs[0])).toBe(TS_RESET >>> 0);
-    expect(tsOf(fs[1])).toBe(TS_CONFIG >>> 0);
+  it('order is CONFIG, RESET, START, data…, sentinel', () => {
+    expect(tsOf(fs[0])).toBe(TS_CONFIG >>> 0);
+    expect(tsOf(fs[1])).toBe(TS_RESET >>> 0);
     expect(tsOf(fs[2])).toBe(TS_START >>> 0);
     expect(tsOf(fs[3])).toBe(0); // first data
     expect(tsOf(fs[4])).toBe(80);
     expect(tsOf(fs[fs.length - 1])).toBe(2 * 80); // sentinel
   });
 
-  it('frame count = RESET + CONFIG + START + rows + sentinel', () => {
+  it('frame count = CONFIG + RESET + START + rows + sentinel', () => {
     expect(fs.length).toBe(3 + 2 + 1); // 3 control + 2 rows + sentinel
   });
 
-  it('CONFIG frame is 6 bytes, immediately after RESET, valve_count LE', () => {
-    expect(fs[1].length).toBe(6);
-    expect(valveCountOf(fs[1])).toBe(80);
+  it('CONFIG is the first frame (offset 0), 6 bytes, valve_count LE', () => {
+    expect(fs[0].length).toBe(6);
+    expect(valveCountOf(fs[0])).toBe(80);
   });
 
   it('RESET and START carry all-zero bits; data frames carry the bits', () => {
-    expect([...fs[0].slice(4)]).toEqual(new Array(B).fill(0));
-    expect([...fs[2].slice(4)]).toEqual(new Array(B).fill(0));
+    expect([...fs[1].slice(4)]).toEqual(new Array(B).fill(0)); // RESET
+    expect([...fs[2].slice(4)]).toEqual(new Array(B).fill(0)); // START
     expect(fs[3][4]).toBe(0x80); // valve 0
     expect(fs[4][4]).toBe(0x40); // valve 1
   });
@@ -145,8 +145,8 @@ describe('buildAnimationGrid — new stream order with CONFIG', () => {
 
   it('is byte-exact for a minimal stream (B=1, valve_count=8)', () => {
     const expected = [
+      0xfd, 0xff, 0xff, 0xff, 0x08, 0x00, // CONFIG first, valve_count=8 (08 00)
       0xff, 0xff, 0xff, 0xff, 0x00, // RESET, all-off
-      0xfd, 0xff, 0xff, 0xff, 0x08, 0x00, // CONFIG, valve_count=8 (08 00)
       0xfe, 0xff, 0xff, 0xff, 0x00, // START, all-off
       0x00, 0x00, 0x00, 0x00, 0x80, // ts=0, valve 0 on
       0x50, 0x00, 0x00, 0x00, 0x00, // sentinel ts=80 (0x50), all-off
@@ -157,15 +157,15 @@ describe('buildAnimationGrid — new stream order with CONFIG', () => {
   it('diagonal (80 valves, B=10) length includes the 6-byte CONFIG', () => {
     const rows = Array.from({ length: 80 }, (_, i) => [i]);
     const s = buildAnimationGrid(rows, 80, 10, 80);
-    // RESET(14) + CONFIG(6) + START(14) + 80×14 + sentinel(14) = 1168
-    expect(s.length).toBe(14 + 6 + 14 + 80 * 14 + 14);
+    // CONFIG(6) + RESET(14) + START(14) + 80×14 + sentinel(14) = 1168
+    expect(s.length).toBe(6 + 14 + 14 + 80 * 14 + 14);
   });
 });
 
-describe('buildAnimationSmooth — new stream order with CONFIG', () => {
+describe('buildAnimationSmooth — CONFIG-first stream order', () => {
   const B = 10;
 
-  it('order RESET, CONFIG(320), START, state frames, sentinel; cumulative state', () => {
+  it('order CONFIG(320), RESET, START, state frames, sentinel; cumulative state', () => {
     const events: ValveEvent[] = [
       { t_ms: 0, valve: 0, on: true },
       { t_ms: 80, valve: 0, on: false },
@@ -173,9 +173,9 @@ describe('buildAnimationSmooth — new stream order with CONFIG', () => {
       { t_ms: 160, valve: 1, on: false },
     ];
     const fs = parseStream(buildAnimationSmooth(events, 80, B, 320), B);
-    expect(tsOf(fs[0])).toBe(TS_RESET >>> 0);
-    expect(tsOf(fs[1])).toBe(TS_CONFIG >>> 0);
-    expect(valveCountOf(fs[1])).toBe(320);
+    expect(tsOf(fs[0])).toBe(TS_CONFIG >>> 0);
+    expect(valveCountOf(fs[0])).toBe(320);
+    expect(tsOf(fs[1])).toBe(TS_RESET >>> 0);
     expect(tsOf(fs[2])).toBe(TS_START >>> 0);
     expect(fs[3][4]).toBe(0x80); // t=0: valve 0 on
     expect(fs[4][4]).toBe(0x40); // t=80: valve 0 off, valve 1 on
@@ -195,10 +195,10 @@ describe('buildAnimationSmooth — new stream order with CONFIG', () => {
     expect(fs[4][4]).toBe(0x00);
   });
 
-  it('empty events -> RESET, CONFIG, START, sentinel only', () => {
+  it('empty events -> CONFIG, RESET, START, sentinel only', () => {
     const fs = parseStream(buildAnimationSmooth([], 80, B, 80), B);
     expect(fs.length).toBe(4);
-    expect(tsOf(fs[1])).toBe(TS_CONFIG >>> 0);
+    expect(tsOf(fs[0])).toBe(TS_CONFIG >>> 0);
     expect(tsOf(fs[3])).toBe(80); // sentinel at lastTs(0) + row_ms
   });
 });

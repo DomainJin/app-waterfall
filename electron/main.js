@@ -64,6 +64,9 @@ function createPreviewWindow() {
       preload: PRELOAD,
       contextIsolation: true,
       nodeIntegration: false,
+      // Keep the rAF water loop running smoothly even when the preview is on a
+      // second monitor / not focused (it stays synced to main-window playback).
+      backgroundThrottling: false,
     },
   });
 
@@ -79,6 +82,20 @@ function createPreviewWindow() {
 ipcMain.handle('open-preview-window', () => {
   createPreviewWindow();
   return true;
+});
+
+// IPC relay between the two windows (separate renderer contexts, no shared
+// state). Main window pushes geometry/grid/transport to the preview window;
+// the preview window notifies the main window (e.g. "ready").
+ipcMain.on('preview:push', (_e, payload) => {
+  if (previewWindow && !previewWindow.isDestroyed()) {
+    previewWindow.webContents.send('preview:data', payload);
+  }
+});
+ipcMain.on('preview:notify', (_e, msg) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('preview:notify-fwd', msg);
+  }
 });
 
 app.whenReady().then(() => {

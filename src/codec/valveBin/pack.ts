@@ -5,9 +5,9 @@ import { CONFIG_FRAME_BYTES, FRAME_HEADER_BYTES, TS_CONFIG } from './constants';
 /**
  * Pack a CONFIG frame: 6 bytes = [FD FF FF FF][valve_count u16 LE]. No padding.
  *
- * Forward-compat note: the firmware parser reads the u32 ts first; if it equals
- * TS_CONFIG (0xFFFFFFFD) it reads 2 more bytes (this 6-byte frame), otherwise a
- * data frame is 4 + B bytes. The app only has to emit the correct order/length.
+ * This frame is emitted FIRST (offset 0) so the firmware can read it without
+ * prior knowledge, learn valve_count, and derive B = ceil(valve_count / 8) for
+ * every following 4 + B frame. The app only has to emit the correct order/length.
  */
 export function packConfigFrame(valveCount: number): Uint8Array {
   const frame = new Uint8Array(CONFIG_FRAME_BYTES);

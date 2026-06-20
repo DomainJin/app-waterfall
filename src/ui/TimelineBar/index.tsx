@@ -11,6 +11,8 @@ export function TimelineBar() {
     durationMs,
     isPlaying,
     fps,
+    computing,
+    progress,
     toggle,
     stop,
     seek,
@@ -23,10 +25,17 @@ export function TimelineBar() {
     <section className="timeline" data-panel="timeline">
       <TransportControls
         isPlaying={isPlaying}
+        playDisabled={computing}
         onToggle={toggle}
         onStop={stop}
         onStep={stepFrame}
       />
+
+      {computing && (
+        <span className="timeline__computing">
+          Đang tính toán: {Math.round(progress * 100)}%…
+        </span>
+      )}
 
       <input
         className="timeline__scrub"

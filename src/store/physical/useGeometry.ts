@@ -13,6 +13,8 @@ export function useGeometry(): Geometry {
   const fixedFrameBytes = usePhysicalStore((s) => s.fixedFrameBytes);
   const valveIndexBase = usePhysicalStore((s) => s.valveIndexBase);
   const led_rows = usePhysicalStore((s) => s.led_rows);
+  const edge_margin = usePhysicalStore((s) => s.edge_margin);
+  const curtain_height_m = usePhysicalStore((s) => s.curtain_height_m);
 
   return useMemo(
     () =>
@@ -21,7 +23,17 @@ export function useGeometry(): Geometry {
         fixedFrameBytes,
         valveIndexBase,
         led_rows,
+        edge_margin,
+        curtain_height_m,
       }),
-    [length_m, row_interval_ms, fixedFrameBytes, valveIndexBase, led_rows],
+    [
+      length_m,
+      row_interval_ms,
+      fixedFrameBytes,
+      valveIndexBase,
+      led_rows,
+      edge_margin,
+      curtain_height_m,
+    ],
   );
 }

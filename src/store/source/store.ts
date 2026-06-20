@@ -24,6 +24,8 @@ interface SourceState {
   useOwn: (layer: LayerId) => void;
   /** Effective frame for a layer at time t — the single read path. */
   frameAt: (layer: LayerId, t_ms: number) => Promise<ImageData | null>;
+  /** Drop a layer's queued-but-not-started reads (see IFrameSource.flushPending). */
+  flushPending: (layer: LayerId) => void;
   /** Name of the source a layer currently resolves to. */
   resolvedName: (layer: LayerId) => string | null;
 }
@@ -108,6 +110,8 @@ export const useSourceStore = create<SourceState>((set, get) => ({
   },
 
   frameAt: (layer, t_ms) => bindings[layer].frameAt(t_ms),
+
+  flushPending: (layer) => bindings[layer].flushPending(),
 
   resolvedName: (layer) => {
     const view = get().bindings[layer];
