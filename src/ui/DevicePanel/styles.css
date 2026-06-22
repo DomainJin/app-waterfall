@@ -67,3 +67,9 @@
   color: #ff6b6b;
   font-size: 12px;
 }
+
+.device__warning {
+  margin-top: 10px;
+  color: #ffb454;
+  font-size: 12px;
+}

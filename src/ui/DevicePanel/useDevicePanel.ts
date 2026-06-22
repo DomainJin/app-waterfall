@@ -12,9 +12,11 @@ import {
 export function useDevicePanel() {
   const ip = useDeviceStore((s) => s.ip);
   const status = useDeviceStore((s) => s.status);
+  const everConnected = useDeviceStore((s) => s.everConnected);
   const tickMs = useDeviceStore((s) => s.tickMs);
   const valveCount = useDeviceStore((s) => s.valveCount);
   const error = useDeviceStore((s) => s.error);
+  const queueWarning = useDeviceStore((s) => s.queueWarning);
   const setIp = useDeviceStore((s) => s.setIp);
   const connect = useDeviceStore((s) => s.connect);
   const disconnect = useDeviceStore((s) => s.disconnect);
@@ -38,9 +40,11 @@ export function useDevicePanel() {
     ip,
     status,
     connected,
+    everConnected,
     tickMs,
     valveCount,
     error,
+    queueWarning,
     effectiveTick,
     row_interval_ms,
     setIp,

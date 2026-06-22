@@ -8,7 +8,6 @@ export function ConfigFields() {
     row_interval_ms,
     fixedFrameBytes,
     valveIndexBase,
-    led_rows,
     edge_margin,
     curtain_height_m,
     fixedOn,
@@ -24,14 +23,13 @@ export function ConfigFields() {
     setRowIntervalMs,
     setFixedFrameBytes,
     setValveIndexBase,
-    setLedRows,
     setEdgeMargin,
     setCurtainHeightM,
   } = usePhysicalConfig();
 
   return (
     <div className="field-grid">
-      <label className="field">
+      <label className="field" title="Physical length of the curtain — drives valve_cols/led_cols via the fixed valve/LED densities">
         <span>Curtain length (m)</span>
         <input
           type="number"
@@ -42,7 +40,7 @@ export function ConfigFields() {
         />
       </label>
 
-      <label className="field">
+      <label className="field" title="Time per row. Clamped to the device's mechanical tick floor once connected">
         <span>Row interval (ms)</span>
         <input
           type="number"
@@ -58,7 +56,7 @@ export function ConfigFields() {
         </small>
       </label>
 
-      <label className="field">
+      <label className="field" title="Drop height for the water — determines fall_time and how many rows are visible at once">
         <span>Curtain height (m)</span>
         <input
           type="number"
@@ -73,18 +71,7 @@ export function ConfigFields() {
         </small>
       </label>
 
-      <label className="field">
-        <span>LED rows (matrix height)</span>
-        <input
-          type="number"
-          min={1}
-          step={1}
-          value={led_rows}
-          onChange={(e) => setLedRows(parseInt(e.target.value, 10))}
-        />
-      </label>
-
-      <label className="field">
+      <label className="field" title="Valves disabled on each side of the curtain (kept off regardless of source/paint)">
         <span>Edge margin (van mỗi bên)</span>
         <input
           type="number"
@@ -100,7 +87,7 @@ export function ConfigFields() {
         </small>
       </label>
 
-      <label className="field">
+      <label className="field" title="Whether the device numbers valves starting at 0 or 1 in the wire protocol">
         <span>Valve index base</span>
         <select
           value={valveIndexBase}
@@ -113,7 +100,7 @@ export function ConfigFields() {
         </select>
       </label>
 
-      <label className="field field--inline">
+      <label className="field field--inline" title="Force a fixed bytes-per-frame instead of deriving it from valve_cols (for firmware expecting a constant frame size)">
         <input
           type="checkbox"
           checked={fixedOn}
@@ -123,7 +110,7 @@ export function ConfigFields() {
       </label>
 
       {fixedOn && (
-        <label className="field">
+        <label className="field" title="Bytes per valve frame when Fixed frame bytes is on">
           <span>Forced bytes/frame</span>
           <input
             type="number"

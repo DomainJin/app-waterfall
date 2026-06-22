@@ -10,8 +10,6 @@ export interface GeometryOptions {
   fixedFrameBytes?: number | null;
   /** 0- or 1-indexed valve numbering, kept consistent across the codebase. */
   valveIndexBase?: ValveIndexBase;
-  /** LED matrix height (vertical pixels). Default DEFAULT_LED_ROWS. */
-  led_rows?: number;
   /** Valves disabled per side (symmetric). App-side only — does NOT change
    *  valve_cols or the .bin. Default 0. */
   edge_margin?: number;
@@ -26,14 +24,12 @@ export interface Geometry {
   length_m: number;
   /** round(length_m × 40). */
   valve_cols: number;
-  /** round(length_m × 10). */
+  /** round(length_m × 10). LED is a 1D strip — no led_rows; one cell per LED. */
   led_cols: number;
   /** ceil(valve_cols / 8), or fixedFrameBytes when forced. */
   valve_bytes_per_frame: number;
   /** Whether valve_bytes_per_frame was forced by fixedFrameBytes. */
   fixedFrameBytes: number | null;
-  /** LED matrix height. */
-  led_rows: number;
   /** Valves disabled per side (symmetric). App-side only. */
   edge_margin: number;
   /** valve_cols − 2 × edge_margin. Video maps 100% into this middle band. */

@@ -64,6 +64,14 @@ export class VideoSource implements IFrameSource {
     return new VideoSource(url, name ?? url, null);
   }
 
+  /** Reload from an absolute fs path (project Open) — no File object needed. */
+  static fromPath(path: string): VideoSource {
+    const toFileUrl = window.electronAPI?.pathToFileUrl;
+    const url = toFileUrl ? toFileUrl(path) : path;
+    const name = path.split(/[\\/]/).pop() || path;
+    return new VideoSource(url, name, null);
+  }
+
   /** Resolves once metadata (size/duration) is available. */
   whenReady(): Promise<void> {
     return this.ready;

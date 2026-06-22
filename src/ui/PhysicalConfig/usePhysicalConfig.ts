@@ -10,7 +10,6 @@ export function usePhysicalConfig() {
   const row_interval_ms = usePhysicalStore((s) => s.row_interval_ms);
   const fixedFrameBytes = usePhysicalStore((s) => s.fixedFrameBytes);
   const valveIndexBase = usePhysicalStore((s) => s.valveIndexBase);
-  const led_rows = usePhysicalStore((s) => s.led_rows);
   const edge_margin = usePhysicalStore((s) => s.edge_margin);
   const curtain_height_m = usePhysicalStore((s) => s.curtain_height_m);
 
@@ -18,7 +17,6 @@ export function usePhysicalConfig() {
   const setRowIntervalMs = usePhysicalStore((s) => s.setRowIntervalMs);
   const setFixedFrameBytes = usePhysicalStore((s) => s.setFixedFrameBytes);
   const setValveIndexBase = usePhysicalStore((s) => s.setValveIndexBase);
-  const setLedRows = usePhysicalStore((s) => s.setLedRows);
   const setEdgeMargin = usePhysicalStore((s) => s.setEdgeMargin);
   const setCurtainHeightM = usePhysicalStore((s) => s.setCurtainHeightM);
 
@@ -46,7 +44,6 @@ export function usePhysicalConfig() {
     row_interval_ms,
     fixedFrameBytes,
     valveIndexBase,
-    led_rows,
     edge_margin,
     fixedOn: fixedFrameBytes != null,
     deviceTickMs,
@@ -63,7 +60,6 @@ export function usePhysicalConfig() {
     setRowIntervalMs: setRowIntervalClamped,
     setFixedFrameBytes,
     setValveIndexBase,
-    setLedRows,
     setEdgeMargin,
     setCurtainHeightM,
   };

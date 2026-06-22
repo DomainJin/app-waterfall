@@ -1,0 +1,17 @@
+.project-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 16px;
+}
+
+.project-menu__file {
+  color: #8a93a0;
+  font-size: 12px;
+}
+
+.project-menu__error {
+  color: #e5534b;
+  font-size: 12px;
+  cursor: pointer;
+}

@@ -30,7 +30,7 @@ export function SourcePanel() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="video/*"
+        accept="video/*,audio/*"
         style={{ display: 'none' }}
         onChange={onFileChosen}
       />

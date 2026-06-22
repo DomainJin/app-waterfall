@@ -1,10 +1,30 @@
 // Preload: the only bridge between the sandboxed renderer and the main
 // process. Exposes a minimal, explicit API on window.electronAPI.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webUtils } = require('electron');
+const { pathToFileURL } = require('node:url');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   /** Ask the main process to open the preview window. */
   openPreviewWindow: () => ipcRenderer.invoke('open-preview-window'),
+
+  /** Real filesystem path for a File picked via <input type=file> (renderer-side, no IPC). */
+  getPathForFile: (file) => webUtils.getPathForFile(file),
+  /** Absolute fs path -> file:// URL a <video>/<audio> element can load. */
+  pathToFileUrl: (path) => pathToFileURL(path).toString(),
+
+  showSaveProjectDialog: (defaultPath) =>
+    ipcRenderer.invoke('dialog:saveProject', defaultPath ?? null),
+  showOpenProjectDialog: (defaultPath) =>
+    ipcRenderer.invoke('dialog:openProject', defaultPath ?? null),
+  writeFile: (path, content) => ipcRenderer.invoke('fs:writeFile', path, content),
+  readFile: (path) => ipcRenderer.invoke('fs:readFile', path),
+  /** Raw bytes (accepts a plain fs path OR a file:// URL) — for decodeAudioData. */
+  readFileBinary: (pathOrFileUrl) => ipcRenderer.invoke('fs:readFileBinary', pathOrFileUrl),
+
+  /** Native "choose a folder" dialog — for Export All. */
+  chooseExportFolder: (defaultPath) => ipcRenderer.invoke('dialog:chooseFolder', defaultPath ?? null),
+  /** Writes multiple binary files into one folder (Export All). */
+  writeFilesToFolder: (folder, files) => ipcRenderer.invoke('fs:writeFilesToFolder', folder, files),
 });
 
 // Cross-window sync for the preview. Both windows run this preload; each uses

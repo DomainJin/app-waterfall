@@ -20,6 +20,18 @@ export function fallSpeed(age_ms: number, H: number, fallDuration = FALL_DURATIO
 }
 
 /**
+ * The single row "now" corresponds to: floor(T / row_ms), clamped to
+ * [0, rows-1]. Shared by anything that just needs "what row is active right
+ * now" rather than the valve's whole falling-water history (e.g. the LED
+ * script, which only ever shows the current row's precomputed color).
+ * Returns -1 if there's no valid row (no rows, or row_ms <= 0).
+ */
+export function currentRowAt(T: number, row_ms: number, rows: number): number {
+  if (row_ms <= 0 || rows <= 0) return -1;
+  return Math.min(rows - 1, Math.max(0, Math.floor(T / row_ms)));
+}
+
+/**
  * Rows whose water is still on the panel at time T: t ∈ [T − fallDuration, T].
  * Returns inclusive [r0, r1], clamped to [0, rows-1]; r1 < r0 means none.
  */

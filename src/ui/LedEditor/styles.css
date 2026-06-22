@@ -44,10 +44,17 @@
   font-size: 13px;
 }
 
-.led-controls__device {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-left: auto;
+.led-controls__field input[type='color'] {
+  width: 32px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #2a2f37;
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.led-controls__status {
+  font-size: 12px;
+  color: #5ce1a6;
 }

@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   computeGeometry,
   DEFAULT_CURTAIN_HEIGHT_M,
-  DEFAULT_LED_ROWS,
   DEFAULT_ROW_INTERVAL_MS,
   GRAVITY_M_S2,
   LEDS_PER_METER,
@@ -63,7 +62,6 @@ describe('computeGeometry — options & defaults', () => {
   it('applies defaults', () => {
     const g = computeGeometry(8);
     expect(g.row_interval_ms).toBe(DEFAULT_ROW_INTERVAL_MS);
-    expect(g.led_rows).toBe(DEFAULT_LED_ROWS);
     expect(g.valveIndexBase).toBe(0);
     expect(g.valve_rows).toBeNull();
   });

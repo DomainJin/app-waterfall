@@ -15,7 +15,7 @@ export function TimelineBar() {
     progress,
     toggle,
     stop,
-    seek,
+    scrub,
     stepFrame,
     setDurationMs,
     setFps,
@@ -44,8 +44,9 @@ export function TimelineBar() {
         max={Math.max(durationMs, 1)}
         step={1}
         value={Math.min(positionMs, durationMs)}
-        onChange={(e) => seek(parseFloat(e.target.value))}
+        onChange={(e) => scrub(parseFloat(e.target.value))}
         aria-label="Scrub timeline"
+        title="Drag to scrub — Space play/pause, Home seek to 0"
       />
 
       <TimeReadout positionMs={positionMs} durationMs={durationMs} />

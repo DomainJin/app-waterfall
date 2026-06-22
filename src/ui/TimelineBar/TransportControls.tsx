@@ -30,7 +30,7 @@ export function TransportControls({
         className="btn btn--icon"
         onClick={onToggle}
         disabled={playDisabled}
-        title={isPlaying ? 'Pause' : 'Play'}
+        title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
       >
         {isPlaying ? '⏸' : '▶'}
       </button>
@@ -38,7 +38,7 @@ export function TransportControls({
         type="button"
         className="btn btn--icon"
         onClick={onStop}
-        title="Stop"
+        title="Pause and seek to 0"
       >
         ⏹
       </button>

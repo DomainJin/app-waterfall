@@ -2,7 +2,6 @@
 // No UI imports, no side effects.
 import {
   DEFAULT_CURTAIN_HEIGHT_M,
-  DEFAULT_LED_ROWS,
   DEFAULT_ROW_INTERVAL_MS,
   GRAVITY_M_S2,
   LEDS_PER_METER,
@@ -30,10 +29,6 @@ export function computeGeometry(
       ? opts.row_interval_ms
       : DEFAULT_ROW_INTERVAL_MS;
   const valveIndexBase: ValveIndexBase = opts.valveIndexBase === 1 ? 1 : 0;
-  const led_rows =
-    opts.led_rows != null && opts.led_rows > 0
-      ? Math.floor(opts.led_rows)
-      : DEFAULT_LED_ROWS;
   const fixedFrameBytes =
     opts.fixedFrameBytes != null && opts.fixedFrameBytes > 0
       ? Math.floor(opts.fixedFrameBytes)
@@ -74,7 +69,6 @@ export function computeGeometry(
     led_cols,
     valve_bytes_per_frame,
     fixedFrameBytes,
-    led_rows,
     edge_margin,
     active_cols,
     marginValid,

@@ -30,8 +30,8 @@ export function usePreviewRenderer() {
     positionMs: 0,
     durationMs: 0,
     fall_time_ms: DEFAULT_FALL_TIME_MS,
-    ledRgb: null,
-    ledRows: 0,
+    ledScript: null,
+    ledScriptRows: 0,
     ledCols: 0,
   });
 
@@ -58,9 +58,9 @@ export function usePreviewRenderer() {
       } else if (msg.type === 'transport') {
         s.positionMs = msg.positionMs;
         s.durationMs = msg.durationMs;
-      } else if (msg.type === 'led') {
-        s.ledRgb = msg.rgb;
-        s.ledRows = msg.rows;
+      } else if (msg.type === 'ledScript') {
+        s.ledScript = msg.rgb;
+        s.ledScriptRows = msg.rows;
         s.ledCols = msg.cols;
       }
       setConnected(true);

@@ -25,7 +25,16 @@
       "Read(//c/Users/Public/**)",
       "Bash(cmd.exe /c \"python --version\")",
       "Bash(cmd.exe /c \"py --version\")",
-      "Bash(cmd.exe /c \"where ffmpeg\")"
+      "Bash(cmd.exe /c \"where ffmpeg\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5173)",
+      "Bash(npx vite --port 5173 > /tmp/vite_led2.log 2>&1 & *)",
+      "Bash(env -u ELECTRON_RUN_AS_NODE -u ELECTRON_NO_ATTACH_CONSOLE npx electron _verify_led.cjs)",
+      "Bash(npx vitest *)",
+      "Bash(pkill -f \"vite --port 5173\")",
+      "Bash(node _mock_device_server.cjs)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

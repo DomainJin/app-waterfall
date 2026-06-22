@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "savedAt": "2026-06-22T01:17:24.756Z",
+  "physical": {
+    "length_m": 8,
+    "row_interval_ms": 16,
+    "fixedFrameBytes": null,
+    "valveIndexBase": 0,
+    "edge_margin": 0,
+    "curtain_height_m": 2
+  },
+  "device": {
+    "ip": "192.168.1.222",
+    "wsPort": 3333,
+    "httpPort": 8080
+  },
+  "valve": {
+    "threshold": 0.5,
+    "invert": false,
+    "flipH": false,
+    "flipV": false,
+    "mode": "grid",
+    "paint": {}
+  },
+  "led": {
+    "brightness": 255,
+    "gamma": 1,
+    "mode": "normal",
+    "baseColor": {
+      "r": 255,
+      "g": 255,
+      "b": 255
+    },
+    "fadeSpeed": 6,
+    "paletteName": "rainbow",
+    "channelOrder": 0,
+    "wiring": 0,
+    "origin": 0,
+    "payloadMode": "rgb888",
+    "runMode": "live"
+  },
+  "audio": {
+    "offsetMs": -100,
+    "volume": 1
+  },
+  "sources": {
+    "master": null,
+    "bindings": {
+      "valve": {
+        "kind": "master",
+        "own": null
+      },
+      "led": {
+        "kind": "master",
+        "own": null
+      },
+      "audio": {
+        "kind": "master",
+        "own": null
+      }
+    }
+  }
+}

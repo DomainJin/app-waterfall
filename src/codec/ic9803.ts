@@ -1,6 +1,7 @@
 // IC9803 / LPD6803 LED wire-format codec — the WebSocket binary protocol
-// between Waterfall Designer and the ESP32 LED controller (port 3334).
-// PURE, no UI/IO imports. Byte-exact to 03_LED_WIRE_FORMAT.md.
+// for LED frames, sent over the SAME socket as valve (port 3333; the
+// firmware tells frames apart by the magic bytes below vs. valve's
+// magic-less frames). PURE, no UI/IO imports. Byte-exact to 03_LED_WIRE_FORMAT.md.
 
 export interface RGB {
   r: number;

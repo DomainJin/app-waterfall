@@ -37,8 +37,11 @@ export function useSourcePanel() {
     e.target.value = ''; // allow re-selecting the same file
     pendingTarget.current = null;
     if (!file || !target) return;
-    if (target === 'master') void loadMaster(file);
-    else void loadOwn(target, file);
+    // Real fs path (Electron only) — lets a saved project reload this file
+    // by path later instead of forcing the user to re-browse.
+    const path = window.electronAPI?.getPathForFile(file) ?? null;
+    if (target === 'master') void loadMaster(file, path);
+    else void loadOwn(target, file, path);
   }
 
   function onLayerSelect(layer: LayerId, value: string) {

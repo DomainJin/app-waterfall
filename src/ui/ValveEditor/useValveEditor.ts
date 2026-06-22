@@ -5,7 +5,7 @@ import { useSourceStore } from '../../store/source';
 import { useTimelineStore } from '../../store/timeline';
 import { useValveStore } from '../../store/valve';
 import { drawValveEditor } from './draw';
-import { downloadBin } from './download';
+import { downloadBin } from '../download';
 
 // All state/effects for the valve editor. The component just renders.
 export function useValveEditor() {

@@ -9,7 +9,9 @@ import {
   cmdStreamStop,
   fetchVersion,
   parseVersion,
+  ValveSocket,
 } from '../src/transport';
+import type { WebSocketLike } from '../src/transport';
 import { valveBits } from '../src/codec/valveBin';
 
 describe('bytesToHex', () => {
@@ -95,5 +97,142 @@ describe('fetchVersion (injected fetch)', () => {
       throw new Error('ECONNREFUSED');
     }) as unknown as typeof fetch;
     expect(await fetchVersion('1.2.3.4', 8080, throwing)).toBeNull();
+  });
+});
+
+// Fake socket — duck-types just the fields ValveSocket touches, so connect/
+// send/throttle logic is testable without a real WebSocket/network.
+interface FakeWebSocket extends Omit<WebSocketLike, 'bufferedAmount'> {
+  bufferedAmount: number; // mutable here so tests can simulate backlog
+  sent: (string | Uint8Array)[];
+  triggerOpen(): void;
+  triggerClose(): void;
+  triggerError(): void;
+}
+
+function fakeWebSocket(): FakeWebSocket {
+  const sent: (string | Uint8Array)[] = [];
+  const ws: FakeWebSocket = {
+    binaryType: '',
+    bufferedAmount: 0,
+    onopen: null,
+    onclose: null,
+    onerror: null,
+    send: (data) => sent.push(data),
+    close: () => {},
+    sent,
+    triggerOpen: () => ws.onopen?.(),
+    triggerClose: () => ws.onclose?.(),
+    triggerError: () => ws.onerror?.(),
+  };
+  return ws;
+}
+
+describe('ValveSocket', () => {
+  it('connect() resolves and reports status connecting -> connected', async () => {
+    const ws = fakeWebSocket();
+    const statuses: string[] = [];
+    const socket = new ValveSocket({ onStatus: (s) => statuses.push(s), createWebSocket: () => ws });
+
+    const connectPromise = socket.connect('ws://device/');
+    expect(statuses).toEqual(['connecting']);
+    ws.triggerOpen();
+    await connectPromise;
+    expect(statuses).toEqual(['connecting', 'connected']);
+    expect(socket.status).toBe('connected');
+  });
+
+  it('connect() rejects and reports status error on a socket error', async () => {
+    const ws = fakeWebSocket();
+    const statuses: string[] = [];
+    const socket = new ValveSocket({ onStatus: (s) => statuses.push(s), createWebSocket: () => ws });
+
+    const connectPromise = socket.connect('ws://device/');
+    ws.triggerError();
+    await expect(connectPromise).rejects.toThrow('WebSocket error');
+    expect(statuses).toEqual(['connecting', 'error']);
+  });
+
+  it('an unexpected close reports status disconnected', async () => {
+    const ws = fakeWebSocket();
+    const statuses: string[] = [];
+    const socket = new ValveSocket({ onStatus: (s) => statuses.push(s), createWebSocket: () => ws });
+    const connectPromise = socket.connect('ws://device/');
+    ws.triggerOpen();
+    await connectPromise;
+
+    ws.triggerClose(); // device dropped the connection unexpectedly
+    expect(statuses).toEqual(['connecting', 'connected', 'disconnected']);
+    expect(socket.status).toBe('disconnected');
+  });
+
+  it('sendText/sendBinary refuse when not connected', () => {
+    const ws = fakeWebSocket();
+    const socket = new ValveSocket({ createWebSocket: () => ws });
+    expect(socket.sendText('{}')).toBe(false);
+    expect(socket.sendBinary(new Uint8Array([1]))).toBe(false);
+    expect(ws.sent).toEqual([]);
+  });
+
+  it('sends once connected', async () => {
+    const ws = fakeWebSocket();
+    const socket = new ValveSocket({ createWebSocket: () => ws });
+    const connectPromise = socket.connect('ws://device/');
+    ws.triggerOpen();
+    await connectPromise;
+
+    expect(socket.sendText('{"cmd":"ALL_OFF"}')).toBe(true);
+    expect(socket.sendBinary(new Uint8Array([1, 2, 3]))).toBe(true);
+    expect(ws.sent).toEqual(['{"cmd":"ALL_OFF"}', new Uint8Array([1, 2, 3])]);
+  });
+
+  it('throttles sends when bufferedAmount exceeds the limit, and warns (not silently)', async () => {
+    const ws = fakeWebSocket();
+    const overflows: number[] = [];
+    const socket = new ValveSocket({
+      createWebSocket: () => ws,
+      onQueueOverflow: (bytes) => overflows.push(bytes),
+      maxBufferedBytes: 100,
+    });
+    const connectPromise = socket.connect('ws://device/');
+    ws.triggerOpen();
+    await connectPromise;
+
+    ws.bufferedAmount = 101;
+    expect(socket.sendBinary(new Uint8Array([1]))).toBe(false);
+    expect(ws.sent).toEqual([]); // throttled, not sent
+    expect(overflows).toEqual([101]);
+  });
+
+  it('resumes sending once the buffer drains below the limit', async () => {
+    const ws = fakeWebSocket();
+    const socket = new ValveSocket({ createWebSocket: () => ws, maxBufferedBytes: 100 });
+    const connectPromise = socket.connect('ws://device/');
+    ws.triggerOpen();
+    await connectPromise;
+
+    ws.bufferedAmount = 200;
+    expect(socket.sendBinary(new Uint8Array([1]))).toBe(false);
+    ws.bufferedAmount = 0; // device caught up
+    expect(socket.sendBinary(new Uint8Array([2]))).toBe(true);
+    expect(ws.sent).toEqual([new Uint8Array([2])]);
+  });
+
+  it('close() reports disconnected and closes the underlying socket', async () => {
+    const ws = fakeWebSocket();
+    let closeCalls = 0;
+    ws.close = () => {
+      closeCalls++;
+    };
+    const statuses: string[] = [];
+    const socket = new ValveSocket({ onStatus: (s) => statuses.push(s), createWebSocket: () => ws });
+    const connectPromise = socket.connect('ws://device/');
+    ws.triggerOpen();
+    await connectPromise;
+
+    socket.close();
+    expect(closeCalls).toBe(1);
+    expect(statuses[statuses.length - 1]).toBe('disconnected');
+    expect(socket.sendText('{}')).toBe(false); // socket cleared, nothing to send to
   });
 });

@@ -1,4 +1,4 @@
-import { fallY, visibleRowRange } from '../../core/preview';
+import { currentRowAt, fallY, visibleRowRange } from '../../core/preview';
 
 // Canvas render for the preview curtain. Falling-water streaks for active
 // valves, a meter ruler, the ms readout, and the disabled edge-margin bands.
@@ -19,15 +19,21 @@ export interface CurtainState {
   positionMs: number;
   durationMs: number;
   fall_time_ms: number;
-  // LED matrix only ever shows the CURRENT instant (no falling/history) —
-  // flat row-major R,G,B per cell, length = ledRows*ledCols*3.
-  ledRgb: Uint8Array | null;
-  ledRows: number;
+  // The LED is a single ceiling-mounted strip (1D, no matrix rows of its
+  // own) whose colors are PRE-COMPUTED for the whole timeline from the
+  // valve grid (LED_MODE_SPEC.md) — same row indexing as `grid`/`rows`
+  // above, just RGB (3 bytes) per cell. Rendering picks the row for the
+  // CURRENT instant (see currentRowAt) — no falling/history for LED.
+  ledScript: Uint8Array | null;
+  ledScriptRows: number;
   ledCols: number;
 }
 
 const RULER_H = 30;
-const LED_STRIP_H = 36;
+/** Each LED's downward glow fades out within this fraction of the curtain height. */
+const LED_GLOW_FRACTION = 0.45;
+/** Each LED's glow spans ~5 valve columns (LED_ACTUAL_SPEC.md §2). */
+const LED_GLOW_VALVE_COLS = 5;
 
 export function drawCurtain(
   canvas: HTMLCanvasElement,
@@ -39,8 +45,7 @@ export function drawCurtain(
   if (!ctx) return;
   const W = canvas.width;
   const H = canvas.height;
-  const showLedStrip = ledOn && s.ledCols > 0 && s.ledRows > 0 && !!s.ledRgb;
-  const curtainTop = RULER_H + (showLedStrip ? LED_STRIP_H : 0);
+  const curtainTop = RULER_H;
   const curtainH = H - curtainTop;
   const cols = s.cols || 0;
   const colW = cols > 0 ? W / cols : W;
@@ -86,19 +91,36 @@ export function drawCurtain(
     }
   }
 
-  // LED matrix strip — mounted above the curtain. Unlike the falling water
-  // (which stacks many past rows at once), the LED layer only ever shows the
-  // CURRENT instant, so this is a plain downsampled-color render, no aging.
-  if (showLedStrip && s.ledRgb) {
-    const stripTop = RULER_H;
-    const cellW = W / s.ledCols;
-    const cellH = LED_STRIP_H / s.ledRows;
-    for (let r = 0; r < s.ledRows; r++) {
-      for (let c = 0; c < s.ledCols; c++) {
-        const i = (r * s.ledCols + c) * 3;
-        ctx.fillStyle = `rgb(${s.ledRgb[i]}, ${s.ledRgb[i + 1]}, ${s.ledRgb[i + 2]})`;
-        ctx.fillRect(c * cellW, stripTop + r * cellH, Math.max(1, cellW - 1), Math.max(1, cellH - 1));
+  // LED glow — a single strip on the CEILING shining down onto the water
+  // (LED_ACTUAL_SPEC.md §2), not a matrix. Each LED is a soft vertical
+  // gradient centered on its physical x position, ~5 valve columns wide,
+  // strongest right at the top and fading out within the upper portion of
+  // the curtain. 'lighter' blending makes it read as cast light landing on
+  // the water rather than an opaque tint. Colors come from the
+  // pre-computed ledScript's row for the CURRENT instant (LED_MODE_SPEC.md)
+  // — no falling/history for LED, just whichever row is "now".
+  if (ledOn && s.ledCols > 0 && s.ledScript && cols > 0) {
+    const ledRow = currentRowAt(s.positionMs, s.row_ms, s.ledScriptRows);
+    if (ledRow >= 0) {
+      const rowBase = ledRow * s.ledCols * 3;
+      const prevOp = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'lighter';
+      const glowW = LED_GLOW_VALVE_COLS * colW;
+      const glowH = curtainH * LED_GLOW_FRACTION;
+      for (let i = 0; i < s.ledCols; i++) {
+        const base = rowBase + i * 3;
+        const r = s.ledScript[base];
+        const g = s.ledScript[base + 1];
+        const b = s.ledScript[base + 2];
+        if (r === 0 && g === 0 && b === 0) continue;
+        const cx = ((i + 0.5) / s.ledCols) * W;
+        const gradient = ctx.createLinearGradient(0, curtainTop, 0, curtainTop + glowH);
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.55)`);
+        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+        ctx.fillStyle = gradient;
+        ctx.fillRect(cx - glowW / 2, curtainTop, glowW, glowH);
       }
+      ctx.globalCompositeOperation = prevOp;
     }
   }
 

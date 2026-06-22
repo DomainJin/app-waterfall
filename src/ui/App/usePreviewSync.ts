@@ -1,19 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { flattenRgb } from '../../core/layers/led';
 import { useGeometry } from '../../store/physical';
 import { useLedStore } from '../../store/led';
 import { useTimelineStore } from '../../store/timeline';
 import { useValveStore } from '../../store/valve';
 
-// Main-window side of the preview sync. The valve grid is precomputed ONCE
-// up front (see useValveGridCompute) — this hook just forwards the finished
-// grid (plus geometry) to the preview window whenever it changes, and a
-// transport tick for the playhead. There is no live video sampling here:
-// the preview reads the exact same flat array Play does, so replay is
-// always identical regardless of how fast the video seeks on this run.
-//
-// The LED matrix (Phase 8) is the opposite: it has no history to replay, so
-// it's just forwarded live as useLedGridCompute keeps it fresh.
+// Main-window side of the preview sync. Both the valve grid AND the LED
+// script are pre-computed ONCE up front (see useValveGridCompute /
+// useLedScriptCompute) — this hook just forwards the finished arrays
+// (plus geometry) to the preview window whenever they change, and a
+// transport tick for the playhead. There is no live sampling here: the
+// preview reads the exact same flat arrays Play does (indexing by the
+// current row itself), so replay is always identical regardless of how
+// fast anything seeks on this run.
 export function usePreviewSync() {
   const [previewReady, setPreviewReady] = useState(false);
 
@@ -22,9 +20,9 @@ export function usePreviewSync() {
   const gridRows = useValveStore((s) => s.gridRows);
   const gridCols = useValveStore((s) => s.gridCols);
 
-  const ledMatrix = useLedStore((s) => s.matrix);
-  const ledRows = useLedStore((s) => s.matrixRows);
-  const ledCols = useLedStore((s) => s.matrixCols);
+  const ledScript = useLedStore((s) => s.script);
+  const ledScriptRows = useLedStore((s) => s.scriptRows);
+  const ledCols = useLedStore((s) => s.scriptCols);
 
   // A closed-then-reopened preview window is a BRAND NEW renderer with no
   // memory of anything sent before — it announces itself with another
@@ -33,8 +31,8 @@ export function usePreviewSync() {
   // anything. Keep the latest values in a ref so the 'ready' handler can
   // always replay the CURRENT grid + transport snapshot immediately,
   // regardless of whether `previewReady` itself actually changed.
-  const latestRef = useRef({ geo, valveGrid, gridRows, gridCols, ledMatrix, ledRows, ledCols });
-  latestRef.current = { geo, valveGrid, gridRows, gridCols, ledMatrix, ledRows, ledCols };
+  const latestRef = useRef({ geo, valveGrid, gridRows, gridCols, ledScript, ledScriptRows, ledCols });
+  latestRef.current = { geo, valveGrid, gridRows, gridCols, ledScript, ledScriptRows, ledCols };
 
   // Preview window announces itself; (re)send everything every time it
   // (re)opens, not just the first time.
@@ -45,7 +43,7 @@ export function usePreviewSync() {
       if (msg !== 'ready') return;
       setPreviewReady(true);
 
-      const { geo, valveGrid, gridRows, gridCols, ledMatrix, ledRows, ledCols } = latestRef.current;
+      const { geo, valveGrid, gridRows, gridCols, ledScript, ledScriptRows, ledCols } = latestRef.current;
       if (valveGrid) {
         bridge.pushToPreview({
           type: 'grid',
@@ -58,8 +56,8 @@ export function usePreviewSync() {
           bits: valveGrid,
         });
       }
-      if (ledMatrix) {
-        bridge.pushToPreview({ type: 'led', cols: ledCols, rows: ledRows, rgb: flattenRgb(ledMatrix) });
+      if (ledScript) {
+        bridge.pushToPreview({ type: 'ledScript', cols: ledCols, rows: ledScriptRows, rgb: ledScript });
       }
       const t = useTimelineStore.getState();
       bridge.pushToPreview({
@@ -89,8 +87,8 @@ export function usePreviewSync() {
     return useTimelineStore.subscribe(push);
   }, [previewReady]);
 
-  // Push the precomputed grid whenever a fresh one lands. One message per
-  // recompute (not streamed row by row) — the preview just indexes into it.
+  // Push the precomputed valve grid whenever a fresh one lands. One message
+  // per recompute (not streamed row by row) — the preview just indexes into it.
   useEffect(() => {
     const bridge = window.previewSync;
     if (!bridge || !previewReady || !valveGrid) return;
@@ -115,14 +113,13 @@ export function usePreviewSync() {
     geo.fall_time_ms,
   ]);
 
-  // Push the LED matrix live, every time useLedGridCompute refreshes it —
-  // there's no "one precompute, many reads" here, just whatever the
-  // playhead currently sees.
+  // Push the precomputed LED script whenever a fresh one lands — same
+  // one-message-per-recompute model as the valve grid, not a live re-push.
   useEffect(() => {
     const bridge = window.previewSync;
-    if (!bridge || !previewReady || !ledMatrix) return;
-    bridge.pushToPreview({ type: 'led', cols: ledCols, rows: ledRows, rgb: flattenRgb(ledMatrix) });
-  }, [previewReady, ledMatrix, ledRows, ledCols]);
+    if (!bridge || !previewReady || !ledScript) return;
+    bridge.pushToPreview({ type: 'ledScript', cols: ledCols, rows: ledScriptRows, rgb: ledScript });
+  }, [previewReady, ledScript, ledScriptRows, ledCols]);
 
   return { previewReady };
 }

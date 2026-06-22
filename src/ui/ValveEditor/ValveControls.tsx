@@ -39,7 +39,7 @@ export function ValveControls({
 }: ValveControlsProps) {
   return (
     <div className="valve-controls">
-      <label className="valve-controls__field">
+      <label className="valve-controls__field" title="Brightness cutoff for on/off: above this fraction the valve is open">
         <span>threshold {threshold.toFixed(2)}</span>
         <input
           type="range"
@@ -78,7 +78,7 @@ export function ValveControls({
         <span>Flip vertical</span>
       </label>
 
-      <label className="valve-controls__field">
+      <label className="valve-controls__field" title="Grid: discrete on/off per row · Smooth: interpolated open/close events between rows">
         <span>mode</span>
         <select value={mode} onChange={(e) => onMode(e.target.value as ValveMode)}>
           <option value="grid">Grid</option>
@@ -86,7 +86,7 @@ export function ValveControls({
         </select>
       </label>
 
-      <button type="button" className="btn btn--sm" onClick={onClearPaint}>
+      <button type="button" className="btn btn--sm" onClick={onClearPaint} title="Remove all manual cell overrides">
         Clear paint
       </button>
 
@@ -95,6 +95,7 @@ export function ValveControls({
         className="btn btn--sm"
         onClick={onExport}
         disabled={exporting || computing}
+        title="Export the precomputed valve grid for the whole timeline as a firmware-replayable .bin"
       >
         {exporting ? 'Exporting…' : computing ? 'Computing…' : 'Export .bin'}
       </button>
