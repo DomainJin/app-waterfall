@@ -27,12 +27,18 @@
 
 .device__row {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
+.device__row .field {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+
 .device__row input {
-  width: 150px;
+  width: 100%;
   background: #0e1116;
   border: 1px solid #2a2f37;
   border-radius: 5px;

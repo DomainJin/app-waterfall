@@ -12,22 +12,27 @@
 
 body {
   margin: 0;
-  background: #111418;
+  background: #101318;
   color: #e6e9ee;
+  overflow-y: auto;
 }
 
 /* Shared panel container. */
 .panel {
   width: 100%;
-  border: 1px solid #2a2f37;
-  border-radius: 8px;
-  padding: 16px 18px;
-  background: #161a20;
+  border: 1px solid #252b35;
+  border-radius: 6px;
+  padding: 14px 16px;
+  background: #151a21;
 }
 
 .panel__title {
-  margin: 0 0 14px;
-  font-size: 15px;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.2;
   color: #cdd4de;
 }
 
@@ -37,10 +42,11 @@ body {
   border: 1px solid #3a86ff;
   background: #1b2330;
   color: #e6e9ee;
-  padding: 8px 14px;
-  border-radius: 6px;
+  padding: 7px 12px;
+  border-radius: 5px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.15;
 }
 
 .btn:hover {
