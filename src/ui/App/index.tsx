@@ -1,4 +1,4 @@
-import { useUiStore } from '../../store/uiStore';
+import { type CSSProperties, type PointerEvent as ReactPointerEvent, useRef, useState } from 'react';
 import { AudioEditor } from '../AudioEditor';
 import { DevicePanel } from '../DevicePanel';
 import { LedEditor } from '../LedEditor';
@@ -13,69 +13,144 @@ import { useDocumentTitle } from './useDocumentTitle';
 import { useExportAll } from './useExportAll';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { useLedScriptCompute } from './useLedScriptCompute';
-import { useOpenPreview } from './useOpenPreview';
-import { usePreviewSync } from './usePreviewSync';
 import { useValveGridCompute } from './useValveGridCompute';
+import { InlinePreview } from './InlinePreview';
 import './styles.css';
 
-// Main window shell. Thin composition — the preview-open logic lives in
-// useOpenPreview; each panel owns its own state.
+// Main window shell. Each panel keeps its own state; this component only
+// composes the commercial workspace layout.
 export function App() {
-  const previewOpenCount = useUiStore((s) => s.previewOpenCount);
-  const openPreview = useOpenPreview();
-  // Pre-computes the whole valve grid up front (geometry/threshold/paint/source).
+  const [physicalOpen, setPhysicalOpen] = useState(true);
+  const [sourcesOpen, setSourcesOpen] = useState(true);
+  const [rightRailWidth, setRightRailWidth] = useState(330);
+  const resizeStartRef = useRef({ x: 0, width: 330 });
+  const leftRailCollapsed = !physicalOpen && !sourcesOpen;
   useValveGridCompute();
-  // Pre-computes the whole LED script from the valve grid (LED_MODE_SPEC.md).
   useLedScriptCompute();
-  // Pushes the finished valve grid + LED script + transport to the preview window over IPC.
-  const { previewReady } = usePreviewSync();
-  // Pre-computes the waveform for the bound audio source (visualization only).
   useAudioWaveformCompute();
-  // Drives a dedicated <audio> element off the master clock + offset.
   useAudioPlaybackSync();
   const { exportAll, exporting: exportingAll, status: exportAllStatus, ready: exportAllReady } = useExportAll();
-  // Space = play/pause, Home = seek to 0 (skipped while typing in a text field).
   useKeyboardShortcuts();
-  // Window title mirrors the currently open project file.
   useDocumentTitle();
+
+  const appBodyStyle = {
+    '--right-rail-width': `${rightRailWidth}px`,
+  } as CSSProperties;
+
+  const startRightRailResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    resizeStartRef.current = { x: event.clientX, width: rightRailWidth };
+    document.body.classList.add('is-resizing-right-rail');
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      const delta = resizeStartRef.current.x - moveEvent.clientX;
+      const maxWidth = Math.min(560, Math.max(330, window.innerWidth - 760));
+      const nextWidth = Math.min(maxWidth, Math.max(280, resizeStartRef.current.width + delta));
+      setRightRailWidth(nextWidth);
+    };
+
+    const onPointerUp = () => {
+      document.body.classList.remove('is-resizing-right-rail');
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+  };
 
   return (
     <div className="app">
-      <header className="app__header">
-        <h1>Waterfall Designer</h1>
-        <ProjectMenu />
-        <span className="app__phase">Phase 9 — Audio layer</span>
-      </header>
+      <div className="app__topbar">
+        <header className="app__header">
+          <h1>Waterfall Designer</h1>
+          <ProjectMenu />
+          <span className="app__phase">Phase 9 - Audio layer</span>
+        </header>
 
-      <TimelineBar />
+        <TimelineBar />
+      </div>
 
-      <main className="app__body">
-        <PhysicalConfig />
-        <DevicePanel />
-        <SourcePanel />
-        <ValveEditor />
-        <LedEditor />
-        <AudioEditor />
+      <main
+        className={`app__body ${leftRailCollapsed ? 'app__body--left-collapsed' : ''}`}
+        style={appBodyStyle}
+      >
+        <aside className="app__rail app__rail--left">
+          <div className="app__rail-section">
+            <button
+              type="button"
+              className={`app__rail-toggle ${physicalOpen ? 'app__rail-toggle--active' : ''}`}
+              onClick={() => setPhysicalOpen((open) => !open)}
+              aria-expanded={physicalOpen}
+              title={physicalOpen ? 'Hide Physical config' : 'Show Physical config'}
+            >
+              <span className="app__rail-toggle-icon">{physicalOpen ? '<' : '>'}</span>
+              <span className="app__rail-toggle-text">Physical</span>
+            </button>
 
-        <button type="button" className="btn" onClick={openPreview}>
-          Open preview window
-        </button>
+            {physicalOpen && (
+              <div className="app__rail-content">
+                <PhysicalConfig />
+              </div>
+            )}
+          </div>
 
-        <button
-          type="button"
-          className="btn"
-          onClick={() => void exportAll()}
-          disabled={exportingAll || !exportAllReady}
-          title="Export valve .bin + LED script together — one folder (Electron) or two downloads (browser)"
-        >
-          {exportingAll ? 'Exporting…' : 'Export All'}
-        </button>
-        {exportAllStatus && <span className="app__export-status">{exportAllStatus}</span>}
+          <div className="app__rail-section">
+            <button
+              type="button"
+              className={`app__rail-toggle ${sourcesOpen ? 'app__rail-toggle--active' : ''}`}
+              onClick={() => setSourcesOpen((open) => !open)}
+              aria-expanded={sourcesOpen}
+              title={sourcesOpen ? 'Hide Sources' : 'Show Sources'}
+            >
+              <span className="app__rail-toggle-icon">{sourcesOpen ? '<' : '>'}</span>
+              <span className="app__rail-toggle-text">Sources</span>
+            </button>
 
-        <p className="app__hint">
-          Preview windows opened this session: {previewOpenCount}
-          {previewReady && ' · preview connected'}
-        </p>
+            {sourcesOpen && (
+              <div className="app__rail-content">
+                <SourcePanel />
+              </div>
+            )}
+          </div>
+        </aside>
+
+        <section className="app__stage" aria-label="Editors">
+          <ValveEditor />
+          <LedEditor />
+          <AudioEditor />
+        </section>
+
+        <aside className="app__rail app__rail--right">
+          <button
+            type="button"
+            className="app__right-resizer"
+            onPointerDown={startRightRailResize}
+            aria-label="Resize right sidebar"
+            title="Resize right sidebar"
+          />
+
+          <DevicePanel />
+
+          <section className="panel app__actions" data-panel="actions">
+            <h2 className="panel__title">Output</h2>
+
+            <div className="app__action-buttons">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void exportAll()}
+                disabled={exportingAll || !exportAllReady}
+                title="Export valve .bin + LED script together - one folder (Electron) or two downloads (browser)"
+              >
+                {exportingAll ? 'Exporting...' : 'Export All'}
+              </button>
+            </div>
+
+            {exportAllStatus && <span className="app__export-status">{exportAllStatus}</span>}
+            <InlinePreview />
+          </section>
+        </aside>
       </main>
     </div>
   );

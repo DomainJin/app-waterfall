@@ -1,17 +1,17 @@
 .timeline {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-top: 16px;
-  padding: 10px 14px;
-  border: 1px solid #2a2f37;
-  border-radius: 8px;
-  background: #161a20;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border: 1px solid #252b35;
+  border-radius: 6px;
+  background: #151a21;
 }
 
 .timeline__transport {
   display: flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .timeline__computing {
@@ -35,7 +35,7 @@
 }
 
 .timeline__pos {
-  font-size: 18px;
+  font-size: 17px;
   color: #5ce1a6;
 }
 
@@ -61,13 +61,24 @@
 }
 
 .timeline__field input {
-  width: 64px;
+  width: 62px;
   background: #0e1116;
   border: 1px solid #2a2f37;
   border-radius: 5px;
   color: #e6e9ee;
   padding: 5px 7px;
   font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .timeline {
+    flex-wrap: wrap;
+  }
+
+  .timeline__scrub {
+    order: 3;
+    flex-basis: 100%;
+  }
 }
 
 .timeline__field input:focus {

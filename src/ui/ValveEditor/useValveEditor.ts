@@ -33,6 +33,7 @@ export function useValveEditor() {
   const computing = useValveStore((s) => s.computing);
 
   const frameAt = useSourceStore((s) => s.frameAt);
+  const flushPending = useSourceStore((s) => s.flushPending);
   // Re-draw when the valve layer's source identity changes.
   const masterName = useSourceStore((s) => s.masterName);
   const valveBinding = useSourceStore((s) => s.bindings.valve);
@@ -54,6 +55,7 @@ export function useValveEditor() {
   const yFrac = flipV ? 1 - cyclePos : cyclePos;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawRequestRef = useRef(0);
   const [status, setStatus] = useState('');
   const [exporting, setExporting] = useState(false);
 
@@ -63,17 +65,25 @@ export function useValveEditor() {
   // the precomputed grid that drives Play/preview/export.
   useEffect(() => {
     let cancelled = false;
+    const requestId = ++drawRequestRef.current;
     const canvas = canvasRef.current;
     if (!canvas) return;
+    flushPending('valve');
     void (async () => {
-      const img = await frameAt('valve', currentRow * row_ms);
-      if (cancelled || !canvasRef.current) return;
-      drawValveEditor(canvasRef.current, img, cols, threshold, invert, paint, currentRow, edge_margin, yFrac, flipH);
+      try {
+        const img = await frameAt('valve', positionMs);
+        if (cancelled || requestId !== drawRequestRef.current || !canvasRef.current) return;
+        drawValveEditor(canvasRef.current, img, cols, threshold, invert, paint, currentRow, edge_margin, yFrac, flipH);
+      } catch (err) {
+        // Swallow seek/timeouts to avoid unhandled promise rejections and
+        // console spam during rapid scrubbing. The UI will simply skip this
+        // draw request — precomputed grid/preview still control playback.
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [frameAt, currentRow, row_ms, cols, threshold, invert, flipH, paint, edge_margin, yFrac, masterName, valveBinding]);
+  }, [frameAt, flushPending, currentRow, cols, threshold, invert, flipH, paint, edge_margin, yFrac, masterName, valveBinding]);
 
   const paintCol = useCallback(
     (col: number, wholeColumn?: boolean) => {
