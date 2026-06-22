@@ -122,9 +122,22 @@ export class VideoSource implements IFrameSource {
       let settled = false;
       const timer = setTimeout(() => {
         if (settled) return;
-        settled = true;
+        // Timeout: try to grab whatever is currently available instead of
+        // rejecting. This avoids unhandled promise rejections when the
+        // browser occasionally fails to fire 'seeked' during rapid seeking.
         v.removeEventListener('seeked', onSeeked);
-        reject(new Error(`seek timed out at ${targetSec.toFixed(3)}s`));
+        try {
+          grab();
+        } catch (err) {
+          // As a last resort, resolve with an empty image so callers don't
+          // receive a rejected promise.
+          if (this.canvas && this.ctx) {
+            const empty = this.ctx.createImageData(this._width || 1, this._height || 1);
+            resolve(empty);
+          } else {
+            resolve(new ImageData(1, 1));
+          }
+        }
       }, VideoSource.SEEK_TIMEOUT_MS);
       const grab = () => {
         if (settled) return;
